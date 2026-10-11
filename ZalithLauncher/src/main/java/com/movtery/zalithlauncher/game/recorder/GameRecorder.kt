@@ -52,9 +52,9 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "GameRecorder"
-private const val FRAME_RATE = 20
-private const val VIDEO_BIT_RATE = 4_000_000 // 4 Mbps
-private const val MAX_VIDEO_DIMENSION = 1920
+private const val FRAME_RATE = 30
+private const val VIDEO_BIT_RATE = 8_000_000 // 8 Mbps
+private const val MAX_VIDEO_DIMENSION = 2560
 private const val RECORDINGS_RELATIVE_PATH = "Movies/ZalithLauncher/Recordings"
 
 /**
