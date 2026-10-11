@@ -29,7 +29,7 @@ import com.movtery.zalithlauncher.R
 fun TeamDialog(
     onDismissRequest: () -> Unit
 ) {
-    val grouped = remember { teamMembers.groupBy { it.category } }
+    val grouped = remember { teamMembers.groupBy { it.categoryRes } }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -41,7 +41,7 @@ fun TeamDialog(
                 grouped.forEach { (category, members) ->
                     item {
                         Text(
-                            text = category,
+                            text = stringResource(category),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )

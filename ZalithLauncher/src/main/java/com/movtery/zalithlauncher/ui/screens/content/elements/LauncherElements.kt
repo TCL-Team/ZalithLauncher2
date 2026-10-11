@@ -28,19 +28,19 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -71,19 +71,11 @@ import com.movtery.zalithlauncher.utils.string.isLowerTo
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
-import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.sendToast
-import dev.chrisbanes.haze.HazeInputScale
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.HazeColorEffect
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import java.io.File
-import kotlin.math.sqrt
 
 @Parcelize
 sealed interface QuickPlay : Parcelable {
@@ -180,11 +172,8 @@ fun LaunchGameOperation(
         is LaunchGameOperation.NoAccount -> {
             LaunchedEffect(Unit) {
                 eventViewModel.sendToast(androidText(R.string.game_launch_no_account))
-                val isOffline = AccountsManager.isOffline.value
-                toAccountManageScreen(
-                    if (isOffline) FirstLoginMenu.MICROSOFT
-                    else FirstLoginMenu.NORMAL
-                )
+                // Keep the launcher’s local account chooser available for both Microsoft and offline login.
+                toAccountManageScreen(FirstLoginMenu.NORMAL)
                 updateOperation(LaunchGameOperation.None)
             }
         }
@@ -369,12 +358,28 @@ fun Background(
     allowVideo: Boolean = true
 ) {
     val context = LocalContext.current
+    val blur = AllSettings.backgroundBlur.state
+    val opacity = AllSettings.launcherBackgroundOpacity.state
+    val backgroundMode = AllSettings.backgroundBlurType.state == BackgroundBlur.Background
+    val backgroundBlurEnabled = backgroundMode && blur > 0 && opacity < 100
+    val layerCapture = !backgroundMode && blur > 0 && opacity < 100 && viewModel.isValid
+    val density = LocalDensity.current
 
     Box(
-        modifier = modifier.backgroundBlur(
-            blur = AllSettings.backgroundBlur.state,
-            hazeState = viewModel.hazeState,
-        )
+        modifier = modifier
+            .then(
+                if (backgroundBlurEnabled && Build.VERSION.SDK_INT >= 31) {
+                    Modifier.blur(blur.dp)
+                } else {
+                    Modifier
+                }
+            )
+            .backgroundCapture(
+                store = viewModel,
+                recordContent = layerCapture,
+                blurRadiusPx = blur * density.density,
+                whiteOverlayAlpha = if (backgroundBlurEnabled) whiteOverlayAlpha(blur) else 0f
+            )
     ) {
         if (viewModel.isValid) {
             when {
@@ -387,15 +392,24 @@ fun Background(
                     )
                 }
                 viewModel.isImage -> {
-                    BackgroundImage(
-                        modifier = Modifier.fillMaxSize(),
-                        imageFile = viewModel.backgroundFile,
-                        refreshTrigger = viewModel.refreshTrigger
-                    )
+                    val blurred = viewModel.blurredBackground
+                    if (backgroundBlurEnabled && Build.VERSION.SDK_INT < 31 && blurred != null) {
+                        Image(
+                            bitmap = blurred,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        BackgroundImage(
+                            modifier = Modifier.fillMaxSize(),
+                            imageFile = viewModel.backgroundFile,
+                            refreshTrigger = viewModel.refreshTrigger
+                        )
+                    }
                 }
             }
         } else if (allowVideo) {
-            //user ne koi custom background set nahi ki hai, isliye app ke andar bundled default video dikhao
             VideoPlayer(
                 videoUri = Uri.parse("android.resource://${context.packageName}/${R.raw.default_background}"),
                 modifier = Modifier.fillMaxSize(),
@@ -403,89 +417,6 @@ fun Background(
             )
         }
     }
-}
-
-@Composable
-private fun Modifier.backgroundBlur(
-    blur: Int,
-    hazeState: HazeState,
-): Modifier {
-    return when (AllSettings.backgroundBlurType.state) {
-        BackgroundBlur.Background -> this.glass(blur, null, null)
-        BackgroundBlur.Foreground -> this.hazeSource(hazeState)
-    }
-}
-
-/**
- * 背景模糊效果
- * @param enabled 是否应用模糊效果
- */
-@Composable
-fun Modifier.backgroundGlass(
-    blur: Int,
-    color: Color,
-    enabled: Boolean = true,
-): Modifier {
-    if (AllSettings.backgroundBlurType.state == BackgroundBlur.Background) return this
-    if (!enabled) return this
-    val background = LocalBackgroundViewModel.current?.takeIf { it.isValid } ?: return this
-    return this.glass(blur, color, background.hazeState)
-}
-
-/**
- * 背景模糊效果
- */
-@Composable
-private fun Modifier.glass(
-    blur: Int,
-    color: Color?,
-    hazeState: HazeState?,
-): Modifier {
-    if (blur <= 0 || AllSettings.launcherBackgroundOpacity.state >= 100) return this
-
-    val t = remember(blur) {
-        (blur / 80f).coerceIn(0f, 1f)
-    }
-
-    val inputScale = remember(t) {
-        val scale = lerp(
-            start = 0.66f,
-            stop = 0.8f,
-            fraction = sqrt(t)
-        )
-        HazeInputScale.Fixed(scale)
-    }
-    val noiseFactor = remember(t) {
-        lerp(
-            start = 0.3f,
-            stop = 0.25f,
-            fraction = sqrt(t)
-        )
-    }
-    val colorEffects = remember(t, color) {
-        val whiteAlpha = lerp(
-            start = 0f,
-            stop = 0.25f,
-            fraction = sqrt(t)
-        )
-        buildList {
-            if (color != null) {
-                add(HazeColorEffect.tint(color, BlendMode.SrcOver))
-            }
-            add(HazeColorEffect.tint(Color.White.copy(alpha = whiteAlpha), BlendMode.Softlight))
-        }
-    }
-
-    return this
-        .hazeEffect(hazeState) {
-            this.inputScale = inputScale
-            blurEffect {
-                this.blurEnabled = true
-                this.blurRadius = blur.dp
-                this.noiseFactor = noiseFactor
-                this.colorEffects = colorEffects
-            }
-        }
 }
 
 @Composable

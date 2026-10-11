@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.ui.screens.content.elements
 
 import android.graphics.Matrix
 import android.os.Build
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +50,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
 import androidx.core.graphics.withSave
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
+import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -59,6 +62,23 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * 背景毛玻璃效果：在元素内容下方对齐绘制启动器背景的预模糊结果
+ * @param enabled 是否应用模糊效果
+ */
+@Composable
+fun Modifier.backgroundGlass(
+    blur: Int,
+    color: Color,
+    enabled: Boolean = true,
+): Modifier {
+    if (AllSettings.backgroundBlurType.state == BackgroundBlur.Background) return this
+    if (!enabled) return this
+    val background = LocalBackgroundViewModel.current?.takeIf { it.isValid } ?: return this
+    if (blur <= 0 || AllSettings.launcherBackgroundOpacity.state >= 100) return this
+    return this then GlassElement(blur, color, background)
+}
 
 /**
  * 启动器背景捕获：由 Background 挂载，发布背景内容与屏幕区域供毛玻璃效果采样

@@ -197,6 +197,7 @@ class GameInstaller(
         val forgeDir: File?,
         val neoforgeDir: File?,
         val fabricDir: File?,
+        val babricDir: File?,
         val legacyFabricDir: File?,
         val quiltDir: File?,
         val cleanroomDir: File?
@@ -227,6 +228,7 @@ class GameInstaller(
         val forgeDir = info.forge?.let { File(tempGameVersionsDir, "forge-${it.versionName}") }
         val neoforgeDir = info.neoforge?.let { File(tempGameVersionsDir, "neoforge-${it.versionName}") }
         val fabricDir = info.fabric?.let { File(tempGameVersionsDir, "fabric-loader-${it.version}-${info.gameVersion}") }
+        val babricDir = info.babric?.let { File(tempGameVersionsDir, "babric-loader-${it.version}-${info.gameVersion}") }
         val legacyFabricDir = info.legacyFabric?.let { File(tempGameVersionsDir, "legacy-fabric-loader-${it.version}-${info.gameVersion}") }
         val quiltDir = info.quilt?.let { File(tempGameVersionsDir, "quilt-loader-${it.version}-${info.gameVersion}") }
         val cleanroomDir = info.cleanroom?.let { File(tempGameVersionsDir, "cleanroom-${it.version}-${info.gameVersion}") }
@@ -245,6 +247,7 @@ class GameInstaller(
             forgeDir = forgeDir,
             neoforgeDir = neoforgeDir,
             fabricDir = fabricDir,
+            babricDir = babricDir,
             legacyFabricDir = legacyFabricDir,
             quiltDir = quiltDir,
             cleanroomDir = cleanroomDir
@@ -276,6 +279,7 @@ class GameInstaller(
                     pathConfig.forgeDir?.createDirAndLog()
                     pathConfig.neoforgeDir?.createDirAndLog()
                     pathConfig.fabricDir?.createDirAndLog()
+                    pathConfig.babricDir?.createDirAndLog()
                     pathConfig.legacyFabricDir?.createDirAndLog()
                     pathConfig.quiltDir?.createDirAndLog()
                     pathConfig.cleanroomDir?.createDirAndLog()
@@ -295,6 +299,7 @@ class GameInstaller(
                     forgeDir = pathConfig.forgeDir,
                     neoforgeDir = pathConfig.neoforgeDir,
                     fabricDir = pathConfig.fabricDir,
+                    babricDir = pathConfig.babricDir,
                     legacyFabricDir = pathConfig.legacyFabricDir,
                     quiltDir = pathConfig.quiltDir,
                     cleanroomDir = pathConfig.cleanroomDir,
@@ -311,6 +316,7 @@ class GameInstaller(
                         pathConfig.forgeDir != null ||
                         pathConfig.neoforgeDir != null ||
                         pathConfig.fabricDir != null ||
+                        pathConfig.babricDir != null ||
                         pathConfig.legacyFabricDir != null ||
                         pathConfig.quiltDir != null ||
                         pathConfig.cleanroomDir != null ||
@@ -327,6 +333,7 @@ class GameInstaller(
                             forgeFolder = pathConfig.forgeDir,
                             neoForgeFolder = pathConfig.neoforgeDir,
                             fabricFolder = pathConfig.fabricDir,
+                            babricFolder = pathConfig.babricDir,
                             legacyFabricFolder = pathConfig.legacyFabricDir,
                             quiltFolder = pathConfig.quiltDir,
                             cleanroomFolder = pathConfig.cleanroomDir,
@@ -372,6 +379,7 @@ class GameInstaller(
                     pathConfig.forgeDir?.createDirAndLog()
                     pathConfig.neoforgeDir?.createDirAndLog()
                     pathConfig.fabricDir?.createDirAndLog()
+                    pathConfig.babricDir?.createDirAndLog()
                     pathConfig.legacyFabricDir?.createDirAndLog()
                     pathConfig.quiltDir?.createDirAndLog()
                     pathConfig.cleanroomDir?.createDirAndLog()
@@ -392,6 +400,7 @@ class GameInstaller(
                     forgeDir = pathConfig.forgeDir,
                     neoforgeDir = pathConfig.neoforgeDir,
                     fabricDir = pathConfig.fabricDir,
+                    babricDir = pathConfig.babricDir,
                     legacyFabricDir = pathConfig.legacyFabricDir,
                     quiltDir = pathConfig.quiltDir,
                     cleanroomDir = pathConfig.cleanroomDir,
@@ -420,6 +429,7 @@ class GameInstaller(
         forgeDir: File?,
         neoforgeDir: File?,
         fabricDir: File?,
+        babricDir: File?,
         legacyFabricDir: File?,
         quiltDir: File?,
         cleanroomDir: File?,
@@ -428,7 +438,7 @@ class GameInstaller(
         // OptiFine 安装
         info.optifine?.let { optifineVersion ->
             //Fabric 系加载器无法加载 OptiFine，需要搭配 OptiFabric，仅作为 Mod 下载
-            val hasFabricLike = fabricDir != null || legacyFabricDir != null || quiltDir != null
+            val hasFabricLike = fabricDir != null || babricDir != null || legacyFabricDir != null || quiltDir != null
 
             if (!hasFabricLike) {
                 val targetInstaller: File = targetTempOptiFineInstaller(tempGameDir)
@@ -546,6 +556,11 @@ class GameInstaller(
                 modName = ModLoader.FABRIC_API.displayName,
                 modVer = apiVersion.displayName
             )
+        }
+
+        // Babric 安装 (与 Fabric 使用相同的 Fabric-like profile 安装流程)
+        info.babric?.let { babricVersion ->
+            addFabricLike(babricVersion, babricDir!!.name)
         }
 
         // Legacy Fabric 安装
@@ -853,6 +868,7 @@ class GameInstaller(
         forgeFolder: File? = null,
         neoForgeFolder: File? = null,
         fabricFolder: File? = null,
+        babricFolder: File? = null,
         legacyFabricFolder: File? = null,
         quiltFolder: File? = null,
         cleanroomFolder: File? = null,
@@ -871,6 +887,7 @@ class GameInstaller(
                 forgeFolder = forgeFolder,
                 neoForgeFolder = neoForgeFolder,
                 fabricFolder = fabricFolder,
+                babricFolder = babricFolder,
                 legacyFabricFolder = legacyFabricFolder,
                 quiltFolder = quiltFolder,
                 cleanroomFolder = cleanroomFolder
@@ -942,6 +959,7 @@ class GameInstaller(
                 forgeFolder = pathConfig.forgeDir,
                 neoForgeFolder = pathConfig.neoforgeDir,
                 fabricFolder = pathConfig.fabricDir,
+                babricFolder = pathConfig.babricDir,
                 legacyFabricFolder = pathConfig.legacyFabricDir,
                 quiltFolder = pathConfig.quiltDir,
                 cleanroomFolder = pathConfig.cleanroomDir
