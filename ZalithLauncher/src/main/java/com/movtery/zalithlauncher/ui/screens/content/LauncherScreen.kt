@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -92,6 +93,8 @@ import com.movtery.zalithlauncher.ui.guide.GuideKeys
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.content.elements.CommonVersionInfoLayout
+import com.movtery.zalithlauncher.ui.screens.content.elements.SideBar
+import com.movtery.zalithlauncher.ui.screens.content.elements.SideBarLayoutWidth
 import com.movtery.zalithlauncher.ui.screens.content.elements.PlayerFace
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionIconImage
 import com.movtery.zalithlauncher.ui.screens.content.home.HomeGrid
@@ -145,109 +148,144 @@ fun LauncherScreen(
             if (!isVisible) dragState.onDragCancel()
         }
 
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .onGloballyPositioned { coordinates ->
-                    dragState.parentOrigin = coordinates.positionInRoot()
-                }
-        ) {
-            val parentWidthPx = constraints.maxWidth.toFloat()
-            dragState.parentWidthPx = parentWidthPx
-            dragState.outerPaddingPx = with(LocalDensity.current) { ActionMenuOuterPadding.toPx() }
-            dragState.menuSpanPx = parentWidthPx * (ActionMenuWeight / (ActionMenuWeight + ContentWeight))
-
-            //拖拽期间以预览侧为准
-            val effectiveSide = dragState.previewSide ?: dockedSide
-
-            //卡片尺寸与停泊槽内容区保持一致
-            val cardWidth = maxWidth * (ActionMenuWeight / (ActionMenuWeight + ContentWeight)) - ActionMenuOuterPadding
-            val cardHeight = maxHeight - ActionMenuOuterPadding * 2
-
-            val toAccountManageScreen: () -> Unit = {
-                backStackViewModel.mainScreen.navigateTo(
-                    screenKey = NormalNavKey.AccountManager(FirstLoginMenu.NONE)
-                )
+        val toAccountManageScreen: () -> Unit = {
+            backStackViewModel.mainScreen.navigateTo(
+                screenKey = NormalNavKey.AccountManager(FirstLoginMenu.NONE)
+            )
+        }
+        val toVersionManageScreen: () -> Unit = {
+            backStackViewModel.mainScreen.removeAndNavigateTo(
+                remove = NestedNavKey.VersionSettings::class,
+                screenKey = NormalNavKey.VersionsManager
+            )
+        }
+        val toVersionSettingsScreen: () -> Unit = {
+            VersionsManager.currentVersion.value?.let { version ->
+                navigateToVersions(version)
             }
-            val toVersionManageScreen: () -> Unit = {
-                backStackViewModel.mainScreen.removeAndNavigateTo(
-                    remove = NestedNavKey.VersionSettings::class,
-                    screenKey = NormalNavKey.VersionsManager
-                )
-            }
-            val toVersionSettingsScreen: () -> Unit = {
-                VersionsManager.currentVersion.value?.let { version ->
-                    navigateToVersions(version)
-                }
-            }
+        }
+        val toGameSettingsScreen: () -> Unit = {
+            backStackViewModel.settingsScreen.clearWith(NormalNavKey.Settings.Game)
+            backStackViewModel.mainScreen.removeAndNavigateTo(
+                removes = backStackViewModel.clearBeforeNavKeys,
+                screenKey = backStackViewModel.settingsScreen
+            )
+        }
+        val toAboutScreen: () -> Unit = {
+            backStackViewModel.settingsScreen.clearWith(NormalNavKey.Settings.AboutInfo)
+            backStackViewModel.mainScreen.removeAndNavigateTo(
+                removes = backStackViewModel.clearBeforeNavKeys,
+                screenKey = backStackViewModel.settingsScreen
+            )
+        }
 
-            // 内容区域
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val showSideBar = maxWidth >= 840.dp
             Row(modifier = Modifier.fillMaxSize()) {
-                // ActionMenu 对接到了 Start，留出空位
-                if (dockedSide == ActionMenuSide.START) {
-                    Spacer(modifier = Modifier.weight(ActionMenuWeight))
+                if (showSideBar) {
+                    SideBar(
+                        modifier = Modifier
+                            .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
+                            .width(SideBarLayoutWidth)
+                            .fillMaxHeight(),
+                        isVisible = isVisible,
+                        onGameSettingsClick = toGameSettingsScreen,
+                        onVersionsClick = toVersionManageScreen,
+                        onAccountsClick = toAccountManageScreen,
+                        onAboutClick = toAboutScreen
+                    )
                 }
 
-                CompositionLocalProvider(
-                    LocalUriHandler provides object : UriHandler {
-                        override fun openUri(uri: String) {
-                            onOpenLink(uri)
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .onGloballyPositioned { coordinates ->
+                            dragState.parentOrigin = coordinates.positionInRoot()
+                        }
+                ) {
+                    val parentWidthPx = constraints.maxWidth.toFloat()
+                    dragState.parentWidthPx = parentWidthPx
+                    dragState.outerPaddingPx = with(LocalDensity.current) { ActionMenuOuterPadding.toPx() }
+                    dragState.menuSpanPx = parentWidthPx * (ActionMenuWeight / (ActionMenuWeight + ContentWeight))
+
+                    //拖拽期间以预览侧为准
+                    val effectiveSide = dragState.previewSide ?: dockedSide
+
+                    //卡片尺寸与停泊槽内容区保持一致
+                    val cardWidth = maxWidth * (ActionMenuWeight / (ActionMenuWeight + ContentWeight)) - ActionMenuOuterPadding
+                    val cardHeight = maxHeight - ActionMenuOuterPadding * 2
+
+                    // 内容区域
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        // ActionMenu 对接到了 Start，留出空位
+                        if (dockedSide == ActionMenuSide.START) {
+                            Spacer(modifier = Modifier.weight(ActionMenuWeight))
+                        }
+
+                        CompositionLocalProvider(
+                            LocalUriHandler provides object : UriHandler {
+                                override fun openUri(uri: String) {
+                                    onOpenLink(uri)
+                                }
+                            }
+                        ) {
+                            ContentMenu(
+                                modifier = Modifier
+                                    .guideNode(
+                                        key = GuideKeys.Main.Step.CardTip,
+                                        holeRadius = 0.dp
+                                    )
+                                    .weight(ContentWeight)
+                                    .offset { IntOffset(x = dragState.previewShift.value.roundToInt(), y = 0) },
+                                isVisible = isVisible,
+                                onLaunchGame = { version ->
+                                    onLaunchGame(version)
+                                },
+                                onQuickPlayServer = onQuickPlayServer,
+                                onOpenVersionSettings = navigateToVersions
+                            )
+                        }
+
+                        // ActionMenu 对接到了 End，留出空位
+                        if (dockedSide == ActionMenuSide.END) {
+                            Spacer(modifier = Modifier.weight(ActionMenuWeight))
                         }
                     }
-                ) {
-                ContentMenu(
-                    modifier = Modifier
-                        .guideNode(
-                            key = GuideKeys.Main.Step.CardTip,
-                            holeRadius = 0.dp
-                        )
-                        .weight(ContentWeight)
-                        .offset { IntOffset(x = dragState.previewShift.value.roundToInt(), y = 0) },
-                    isVisible = isVisible,
-                    onLaunchGame = { version ->
-                        onLaunchGame(version)
-                    },
-                    onQuickPlayServer = onQuickPlayServer,
-                    onOpenVersionSettings = navigateToVersions
-                )
-                }
 
-                // ActionMenu 对接到了 End，留出空位
-                if (dockedSide == ActionMenuSide.END) {
-                    Spacer(modifier = Modifier.weight(ActionMenuWeight))
-                }
-            }
-
-            val isActionMenuTaller = maxHeight >= 600.dp
-            CompositionLocalProvider(LocalActionMenuDrag provides dragState) {
-                Box(
-                    modifier = Modifier
-                        .offset {
-                            val translation = if (dragState.floating) {
-                                dragState.cardPosition
-                            } else {
-                                dragState.landingOf(effectiveSide) + dragState.settleOffset.value
-                            }
-                            val x = if (isRtl) parentWidthPx - cardWidth.toPx() - translation.x else translation.x
-                            IntOffset(x.roundToInt(), translation.y.roundToInt())
+                    val isActionMenuTaller = maxHeight >= 600.dp
+                    CompositionLocalProvider(LocalActionMenuDrag provides dragState) {
+                        Box(
+                            modifier = Modifier
+                                .offset {
+                                    val translation = if (dragState.floating) {
+                                        dragState.cardPosition
+                                    } else {
+                                        dragState.landingOf(effectiveSide) + dragState.settleOffset.value
+                                    }
+                                    val x = if (isRtl) parentWidthPx - cardWidth.toPx() - translation.x else translation.x
+                                    IntOffset(x.roundToInt(), translation.y.roundToInt())
+                                }
+                                .size(cardWidth, cardHeight)
+                        ) {
+                            ActionMenu(
+                                modifier = Modifier.fillMaxSize(),
+                                isVisible = isVisible,
+                                isTaller = isActionMenuTaller,
+                                dockedSide = dockedSide,
+                                onLaunchGame = onLaunchGame,
+                                swapTargetValue = if (dockedSide == ActionMenuSide.END) 40.dp else (-40).dp,
+                                pickUpScale = { dragState.scale },
+                                toAccountManageScreen = toAccountManageScreen,
+                                toVersionManageScreen = toVersionManageScreen,
+                                toVersionSettingsScreen = toVersionSettingsScreen
+                            )
                         }
-                        .size(cardWidth, cardHeight)
-                ) {
-                    ActionMenu(
-                        modifier = Modifier.fillMaxSize(),
-                        isVisible = isVisible,
-                        isTaller = isActionMenuTaller,
-                        dockedSide = dockedSide,
-                        onLaunchGame = onLaunchGame,
-                        swapTargetValue = if (dockedSide == ActionMenuSide.END) 40.dp else (-40).dp,
-                        pickUpScale = { dragState.scale },
-                        toAccountManageScreen = toAccountManageScreen,
-                        toVersionManageScreen = toVersionManageScreen,
-                        toVersionSettingsScreen = toVersionSettingsScreen
-                    )
+                    }
                 }
             }
         }
+
     }
 }
 

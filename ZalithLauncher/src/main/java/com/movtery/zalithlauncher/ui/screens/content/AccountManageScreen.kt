@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -646,90 +645,62 @@ private fun AccountsLayout(
         modifier = modifier.offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
         shape = MaterialTheme.shapes.extraLarge
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
+        if (accounts.isNotEmpty()) {
+            val scrollState = rememberLazyListState()
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = stringResource(R.string.account_section_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ) {
-                    Text(
-                        text = stringResource(R.string.account_section_count, accounts.size),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelLarge
+                    .fillMaxSize()
+                    .nonInteractiveScrollbar(
+                        state = scrollState.scrollIndicatorState!!,
+                        orientation = Orientation.Vertical,
                     )
-                }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-
-            if (accounts.isNotEmpty()) {
-                val scrollState = rememberLazyListState()
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .nonInteractiveScrollbar(
-                            state = scrollState.scrollIndicatorState!!,
-                            orientation = Orientation.Vertical,
-                        )
-                        .clip(MaterialTheme.shapes.extraLarge),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    state = scrollState,
-                ) {
-                    items(accounts, key = { it.uniqueUUID }) { account ->
-                        AccountItem(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            currentAccount = currentAccount,
-                            account = account,
-                            onSelected = { AccountsManager.setCurrentAccount(it) },
-                            openChangeSkinDialog = {
-                                if (!account.isAuthServerAccount()) {
-                                    actions.onIntent(
-                                        AccountManageIntent.UpdateAccountSkinOp(
-                                            AccountSkinOperation.ChangeSkin(account)
-                                        )
-                                    )
-                                }
-                            },
-                            onRefreshClick = {
+                    .clip(MaterialTheme.shapes.extraLarge),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                state = scrollState,
+            ) {
+                items(accounts, key = { it.uniqueUUID }) { account ->
+                    AccountItem(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        currentAccount = currentAccount,
+                        account = account,
+                        onSelected = { AccountsManager.setCurrentAccount(it) },
+                        openChangeSkinDialog = {
+                            if (!account.isAuthServerAccount()) {
                                 actions.onIntent(
-                                    AccountManageIntent.RefreshAccount(account)
-                                )
-                            },
-                            onCopyUUID = {
-                                copyText(COPY_LABEL_ACCOUNT_UUID, account.profileId, context, true)
-                            },
-                            onDeleteClick = {
-                                actions.onIntent(
-                                    AccountManageIntent.UpdateAccountOp(
-                                        AccountOperation.Delete(account)
+                                    AccountManageIntent.UpdateAccountSkinOp(
+                                        AccountSkinOperation.ChangeSkin(account)
                                     )
                                 )
                             }
-                        )
-                    }
+                        },
+                        onRefreshClick = {
+                            actions.onIntent(
+                                AccountManageIntent.RefreshAccount(
+                                    account
+                                )
+                            )
+                        },
+                        onCopyUUID = {
+                            copyText(COPY_LABEL_ACCOUNT_UUID, account.profileId, context, true)
+                        },
+                        onDeleteClick = {
+                            actions.onIntent(
+                                AccountManageIntent.UpdateAccountOp(
+                                    AccountOperation.Delete(account)
+                                )
+                            )
+                        }
+                    )
                 }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ScalingLabel(text = stringResource(R.string.account_no_account))
-                }
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                ScalingLabel(
+                    modifier = Modifier.align(Alignment.Center),
+                    text = stringResource(R.string.account_no_account)
+                )
             }
         }
     }

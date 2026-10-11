@@ -45,45 +45,6 @@ import com.movtery.zalithlauncher.utils.festival.LocalFestivals
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 
-/** Dark graphite surfaces with electric cyan, teal and violet accents. */
-private val gamingDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF75D7FF),
-    onPrimary = Color(0xFF003545),
-    primaryContainer = Color(0xFF004E66),
-    onPrimaryContainer = Color(0xFFC1EDFF),
-    secondary = Color(0xFF79DEC2),
-    onSecondary = Color(0xFF00382D),
-    secondaryContainer = Color(0xFF155343),
-    onSecondaryContainer = Color(0xFFB5F4E0),
-    tertiary = Color(0xFFC2B6FF),
-    onTertiary = Color(0xFF2A205E),
-    tertiaryContainer = Color(0xFF413878),
-    onTertiaryContainer = Color(0xFFE5DFFF),
-    error = Color(0xFFFF8A9A),
-    onError = Color(0xFF5A0018),
-    errorContainer = Color(0xFF8C2037),
-    onErrorContainer = Color(0xFFFFD9DE),
-    background = Color(0xFF080B12),
-    onBackground = Color(0xFFE8EEF8),
-    surface = Color(0xFF0B1018),
-    onSurface = Color(0xFFE8EEF8),
-    surfaceVariant = Color(0xFF202B3A),
-    onSurfaceVariant = Color(0xFFC0CDDD),
-    outline = Color(0xFF71839A),
-    outlineVariant = Color(0xFF354356),
-    scrim = Color(0xFF000000),
-    inverseSurface = Color(0xFFE8EEF8),
-    inverseOnSurface = Color(0xFF202B3A),
-    inversePrimary = Color(0xFF006684),
-    surfaceDim = Color(0xFF080B12),
-    surfaceBright = Color(0xFF293548),
-    surfaceContainerLowest = Color(0xFF05080E),
-    surfaceContainerLow = Color(0xFF0D141E),
-    surfaceContainer = Color(0xFF111A27),
-    surfaceContainerHigh = Color(0xFF192435),
-    surfaceContainerHighest = Color(0xFF222F42),
-)
-
 private val embermireLight = lightColorScheme(
     primary = primaryLight.embermire,
     onPrimary = onPrimaryLight.embermire,
@@ -647,8 +608,6 @@ fun ZalithLauncherTheme(
     festivals: List<Festival> = emptyList(),
     content: @Composable () -> Unit
 ) {
-    val gamingStyle = AllSettings.launcherGamingStyle.state
-    val isDarkTheme = darkTheme || gamingStyle
     val colorTheme = AllSettings.launcherColorTheme.state
     val customColorInt = AllSettings.launcherCustomColor.state
     val customColor = Color(customColorInt)
@@ -656,22 +615,13 @@ fun ZalithLauncherTheme(
 
     val context = LocalContext.current
 
-    val targetColorScheme = remember(
-        isDarkTheme,
-        dynamicColor,
-        colorTheme,
-        customColor,
-        customPaletteStyle,
-        gamingStyle
-    ) {
+    val targetColorScheme = remember(darkTheme, dynamicColor, colorTheme, customColor, customPaletteStyle) {
         when {
-            gamingStyle -> gamingDarkColorScheme
-
             dynamicColor && colorTheme == ColorThemeType.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
 
-            isDarkTheme -> when (colorTheme) {
+            darkTheme -> when (colorTheme) {
                 ColorThemeType.EMBERMIRE -> embermireDark
                 ColorThemeType.VELVET_ROSE -> velvetRoseDark
                 ColorThemeType.MISTWAVE -> mistwaveDark
@@ -703,14 +653,14 @@ fun ZalithLauncherTheme(
         }
     }
 
-    var currentDarkTheme by remember { mutableStateOf(isDarkTheme) }
+    var currentDarkTheme by remember { mutableStateOf(darkTheme) }
     var currentDisplayScheme by remember { mutableStateOf(targetColorScheme) }
 
-    LaunchedEffect(isDarkTheme, targetColorScheme) {
-        if (isDarkTheme != currentDarkTheme) {
+    LaunchedEffect(darkTheme, targetColorScheme) {
+        if (darkTheme != currentDarkTheme) {
             context.activeMaskView(
                 maskComplete = {
-                    currentDarkTheme = isDarkTheme
+                    currentDarkTheme = darkTheme
                     currentDisplayScheme = targetColorScheme
                 },
                 maskAnimFinish = {
@@ -718,7 +668,7 @@ fun ZalithLauncherTheme(
                 }
             )
         } else {
-            currentDarkTheme = isDarkTheme
+            currentDarkTheme = darkTheme
             currentDisplayScheme = targetColorScheme
         }
     }

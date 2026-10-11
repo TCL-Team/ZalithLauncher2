@@ -515,8 +515,6 @@
     <string name="account_add_new_server">Add Auth Server</string>
     <string name="account_add_new_server_button">Add Auth</string>
     <string name="account_add_new_account">Add Account</string>
-    <string name="account_section_title">Your accounts</string>
-    <string name="account_section_count">%1$d saved</string>
     <string name="account_label_username">Username</string>
     <string name="account_label_server_url">Enter server address</string>
     <string name="account_label_email">Email or Username</string>
@@ -1092,11 +1090,6 @@
     <string name="settings_gamepad_config_create_name">Configuration Name</string>
     <string name="settings_gamepad_config_create_contains">A configuration with the same name already exists</string>
     <string name="settings_gamepad_config_no_items">No configurations created, unable to switch</string>
-    <string name="settings_launcher_gaming_style_title">Gaming appearance</string>
-    <string name="settings_launcher_gaming_style_summary">Use a unified graphite-dark look with electric cyan and teal accents across the launcher.</string>
-    <string name="home_gaming_eyebrow">GAME CENTER</string>
-    <string name="home_gaming_title">Ready for your next world?</string>
-    <string name="home_gaming_no_version">Select a Minecraft version to get started</string>
     <string name="settings_launcher_color_theme_title">Color Theme</string>
     <string name="settings_launcher_color_theme_summary">Customize launcher colors</string>
     <string name="settings_launcher_color_theme_style">Palette Style</string>

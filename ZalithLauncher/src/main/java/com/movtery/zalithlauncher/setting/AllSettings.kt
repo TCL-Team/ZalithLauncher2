@@ -372,11 +372,6 @@ object AllSettings : SettingsRegistry() {
     )
 
     /**
-     * Unified dark gaming appearance for the launcher UI.
-     */
-    val launcherGamingStyle = boolSetting("launcherGamingStyle", true)
-
-    /**
      * 自定义颜色主题色
      */
     val launcherCustomColor = intSetting("launcherCustomColor", Color.Blue.toArgb())

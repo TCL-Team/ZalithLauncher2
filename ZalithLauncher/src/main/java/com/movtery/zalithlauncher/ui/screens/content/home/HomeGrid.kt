@@ -18,12 +18,10 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.home
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,12 +30,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -57,7 +53,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.movtery.cardgrid.model.CardRect
 import com.movtery.cardgrid.state.CardGridState
@@ -66,12 +61,10 @@ import com.movtery.cardgrid.state.GridCard
 import com.movtery.cardgrid.ui.CardGrid
 import com.movtery.cardgrid.ui.CardGridAutoScroll
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.screens.content.home.server.ServerCardManager
 import com.movtery.zalithlauncher.ui.screens.content.home.server.ServerCardSettingsHost
-import com.movtery.zalithlauncher.ui.screens.content.home.version.LocalHomeCardLauncher
 import com.movtery.zalithlauncher.ui.screens.content.home.version.VersionCardManager
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -207,12 +200,6 @@ fun HomeGrid(
                 .padding(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            HomeHeroCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 6.dp)
-            )
-
             val systemCards = HomeCards.systemCards()
             if (!systemCards.isEmpty()) {
                 Column(
@@ -262,74 +249,6 @@ fun HomeGrid(
         operation = operation,
         onChange = { operation = it }
     )
-}
-
-@Composable
-private fun HomeHeroCard(modifier: Modifier = Modifier) {
-    val version by VersionsManager.currentVersion.collectAsStateWithLifecycle()
-    val onLaunch = LocalHomeCardLauncher.current
-    val selectedVersionName = version?.takeIf { it.isValid() }?.getVersionName()
-    val canLaunch = selectedVersionName != null
-
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
-        shadowElevation = 1.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                ) {
-                    Icon(
-                        modifier = Modifier.padding(6.dp).size(18.dp),
-                        painter = painterResource(R.drawable.ic_videogame_asset_outlined),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.home_gaming_eyebrow),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Text(
-                text = stringResource(R.string.home_gaming_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = selectedVersionName
-                    ?: stringResource(R.string.home_gaming_no_version),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Button(
-                onClick = { version?.takeIf { it.isValid() }?.let(onLaunch) },
-                enabled = canLaunch
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_play_arrow_filled),
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.main_launch_game))
-            }
-        }
-    }
 }
 
 @Composable
