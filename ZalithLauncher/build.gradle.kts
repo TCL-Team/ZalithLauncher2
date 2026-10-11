@@ -151,7 +151,9 @@ android {
 // by this project, avoiding duplicate native-library entries; downloaded files stay in ignored caches.
 val mobileGluesBuildOutput = layout.buildDirectory.dir("generated/mobileglues")
 val mobileGluesJniLibs = mobileGluesBuildOutput.map { it.dir("jniLibs") }
-android.sourceSets.getByName("main").jniLibs.srcDir(mobileGluesJniLibs)
+// AGP 9's SourceSet API accepts path strings, not Gradle Providers; preBuild below explicitly
+// depends on the task that populates this generated directory.
+android.sourceSets.getByName("main").jniLibs.directories.add(mobileGluesJniLibs.get().asFile.absolutePath)
 
 val downloadMobileGlues by tasks.registering {
     group = "build setup"
