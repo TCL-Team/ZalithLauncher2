@@ -56,9 +56,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.movtery.zalithlauncher.R
@@ -67,6 +70,19 @@ import com.movtery.zalithlauncher.ui.theme.onCardColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
+
+/**
+ * Returns the maximum height available to dialog content, bounded by the window container.
+ * Retaining the largest observed height avoids dialog jumps while the IME animates.
+ */
+@Composable
+fun rememberDialogMaxHeight(): Dp {
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    var maxHeight by remember(windowInfo) { mutableStateOf(windowInfo.containerSize.height) }
+    maxHeight = maxOf(maxHeight, windowInfo.containerSize.height)
+    return with(density) { maxHeight.toDp() }
+}
 
 /**
  * 展示警告对话框
