@@ -52,8 +52,9 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "GameRecorder"
-private const val FRAME_RATE = 30
-private const val VIDEO_BIT_RATE = 6_000_000 // 6 Mbps
+private const val FRAME_RATE = 20
+private const val VIDEO_BIT_RATE = 4_000_000 // 4 Mbps
+private const val MAX_VIDEO_DIMENSION = 1920
 private const val RECORDINGS_RELATIVE_PATH = "Movies/ZalithLauncher/Recordings"
 
 /**
@@ -78,6 +79,8 @@ object GameRecorder {
     @Volatile private var recordingContext: Context? = null
     private var captureThread: HandlerThread? = null
     private var captureHandler: Handler? = null
+    @Volatile private var recordingWidth = 0
+    @Volatile private var recordingHeight = 0
     private val isCapturing = AtomicBoolean(false)
     @Volatile private var pendingUri: Uri? = null
 
@@ -89,8 +92,9 @@ object GameRecorder {
             Log.e(TAG, "No game surface registered — cannot start recording")
             return false
         }
-        val width = (view.width.coerceAtLeast(2) / 2) * 2
-        val height = (view.height.coerceAtLeast(2) / 2) * 2
+        val (width, height) = getRecordingSize(view.width, view.height)
+        recordingWidth = width
+        recordingHeight = height
 
         try {
             recordingContext = context.applicationContext
@@ -217,8 +221,8 @@ object GameRecorder {
     }
 
     private fun captureFromSurfaceView(view: SurfaceView, output: Surface) {
-        val width = view.width.coerceAtLeast(1)
-        val height = view.height.coerceAtLeast(1)
+        val width = recordingWidth.coerceAtLeast(2)
+        val height = recordingHeight.coerceAtLeast(2)
         val bitmap = runCatching { Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) }
             .getOrElse {
                 Log.e(TAG, "Could not allocate a recording frame", it)
@@ -249,7 +253,7 @@ object GameRecorder {
 
     private fun captureFromTextureView(view: TextureView, output: Surface) {
         val bitmap = runCatching {
-            view.getBitmap(view.width.coerceAtLeast(1), view.height.coerceAtLeast(1))
+            view.getBitmap(recordingWidth.coerceAtLeast(2), recordingHeight.coerceAtLeast(2))
         }.onFailure { Log.w(TAG, "Could not capture a TextureView frame", it) }.getOrNull()
         if (bitmap != null) {
             if (isCapturing.get()) drawToSurface(bitmap, output)
@@ -258,15 +262,10 @@ object GameRecorder {
         scheduleNextFrame()
     }
 
-    @Suppress("DEPRECATION")
     private fun drawToSurface(bitmap: Bitmap, surface: Surface) {
         runCatching {
-            val canvas = try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) surface.lockHardwareCanvas()
-                else surface.lockCanvas(null)
-            } catch (_: Exception) {
-                surface.lockCanvas(null)
-            }
+            // Software Canvas avoids the HWUI/GLES path that can crash some mobile GPU drivers.
+            val canvas = surface.lockCanvas(null)
             try {
                 canvas.drawBitmap(bitmap, 0f, 0f, null)
             } finally {
@@ -283,6 +282,18 @@ object GameRecorder {
                 delay(250L)
             }
         }
+    }
+
+    private fun getRecordingSize(sourceWidth: Int, sourceHeight: Int): Pair<Int, Int> {
+        val safeWidth = sourceWidth.coerceAtLeast(2)
+        val safeHeight = sourceHeight.coerceAtLeast(2)
+        val scale = minOf(
+            1f,
+            MAX_VIDEO_DIMENSION.toFloat() / maxOf(safeWidth, safeHeight).toFloat()
+        )
+        val width = ((safeWidth * scale).toInt().coerceAtLeast(2) / 2) * 2
+        val height = ((safeHeight * scale).toInt().coerceAtLeast(2) / 2) * 2
+        return width to height
     }
 
     private fun finalise(context: Context) {
@@ -323,6 +334,8 @@ object GameRecorder {
             captureThread?.quitSafely()
             captureThread = null
             captureHandler = null
+            recordingWidth = 0
+            recordingHeight = 0
             recordingContext = null
             pendingUri = null
             timerJob?.cancel()
@@ -345,6 +358,8 @@ object GameRecorder {
         captureThread?.quitSafely()
         captureThread = null
         captureHandler = null
+        recordingWidth = 0
+        recordingHeight = 0
         timerJob?.cancel()
         timerJob = null
         _elapsedMs.value = 0L
