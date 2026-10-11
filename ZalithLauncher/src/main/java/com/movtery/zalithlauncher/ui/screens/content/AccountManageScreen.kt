@@ -308,6 +308,20 @@ private fun ActionsLayout(
         ) {
             MarqueeText(text = stringResource(R.string.account_add_new_account))
         }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 离线账号可以直接添加，不需要先完成 Microsoft 登录验证。
+        ScalingActionButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                actions.onIntent(
+                    AccountManageIntent.UpdateLocalLoginOp(LocalLoginOperation.Edit)
+                )
+            }
+        ) {
+            MarqueeText(text = stringResource(R.string.account_local_create_account))
+        }
     }
 }
 
