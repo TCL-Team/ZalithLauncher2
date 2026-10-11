@@ -94,6 +94,8 @@ import com.movtery.zalithlauncher.game.launch.handler.HandlerType
 import com.movtery.zalithlauncher.game.launch.handler.JVMHandler
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
+import com.movtery.zalithlauncher.game.recorder.GameRecorder
+import com.movtery.zalithlauncher.game.recorder.GameSurfaceRegistry
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.game.version.installed.Version
@@ -650,6 +652,8 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     }
 
     override fun onDestroy() {
+        GameRecorder.stopAndSave(applicationContext)
+        GameSurfaceRegistry.unregister()
         getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displayListener)
         stopAllService()
         withHandler { onDestroy() }
@@ -988,6 +992,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                             }
                         }
                     }
+                    GameSurfaceRegistry.register(view)
                     view.setOnApplyWindowInsetsListener { v, insets ->
                         if (SdlBridge.sdlEnabled && android.os.Build.VERSION.SDK_INT >= 30) {
                             SDLActivity.notifyImeVisibilityChanged(

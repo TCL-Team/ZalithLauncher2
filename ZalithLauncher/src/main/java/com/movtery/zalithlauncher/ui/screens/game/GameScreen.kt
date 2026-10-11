@@ -18,6 +18,12 @@
 
 package com.movtery.zalithlauncher.ui.screens.game
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +61,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -78,6 +85,8 @@ import com.movtery.zalithlauncher.bridge.ZLNativeInvoker
 import com.movtery.zalithlauncher.game.input.LWJGLCharSender
 import com.movtery.zalithlauncher.game.keycodes.mapToKeycode
 import com.movtery.zalithlauncher.game.launch.handler.GameHandler
+import com.movtery.zalithlauncher.game.recorder.GameRecorder
+import com.movtery.zalithlauncher.game.recorder.RecordingState
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.game.sdl.SdlTextSender
 import com.movtery.zalithlauncher.game.support.touch_controller.touchControllerInputModifier
@@ -87,6 +96,7 @@ import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.isLauncherInDarkTheme
 import com.movtery.zalithlauncher.setting.enums.toAction
 import com.movtery.zalithlauncher.terracotta.Terracotta
+import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MenuState
 import com.movtery.zalithlauncher.ui.components.rememberBoxSize
@@ -582,6 +592,44 @@ fun GameScreen(
         eventViewModel.sendEvent(EventViewModel.Event.Game.SwitchIme(mode))
     }
     val editorViewModel = rememberEditorViewModel("ControlEditor_Times=${viewModel.editorRefresh}")
+    val recordingState by GameRecorder.state.collectAsStateWithLifecycle()
+    val elapsedMs by GameRecorder.elapsedMs.collectAsStateWithLifecycle()
+
+    val startRecording: () -> Unit = {
+        val started = GameRecorder.start(context)
+        eventViewModel.sendToast(
+            androidText(if (started) R.string.recorder_started else R.string.recorder_failed),
+            Toast.LENGTH_SHORT
+        )
+    }
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startRecording()
+        } else {
+            eventViewModel.sendToast(androidText(R.string.recorder_permission_required))
+        }
+    }
+    val requestStartRecording: () -> Unit = {
+        viewModel.gameMenuState = MenuState.HIDE
+        val needsLegacyStoragePermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+        if (needsLegacyStoragePermission) {
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            startRecording()
+        }
+    }
+    val stopRecording: () -> Unit = {
+        if (GameRecorder.stopAndSave(context)) {
+            eventViewModel.sendToast(androidText(R.string.recorder_saving), Toast.LENGTH_SHORT)
+        }
+    }
+
     val cursorMode by ZLBridgeStates.cursorMode.collectAsStateWithLifecycle()
     val isGrabbing = remember(cursorMode) {
         cursorMode == CURSOR_DISABLED
@@ -768,6 +816,9 @@ fun GameScreen(
             onInputMethod = {
                 eventViewModel.sendEvent(EventViewModel.Event.Game.SwitchIme(null))
             },
+            recordingState = recordingState,
+            onStartRecording = requestStartRecording,
+            onStopRecording = stopRecording,
             onSendKeycode = { viewModel.sendKeycodeState = SendKeycodeState.ShowDialog },
             onReplacementControl = { viewModel.replacementControlState = ReplacementControlState.Show },
             onEditLayout = {
@@ -848,7 +899,12 @@ fun GameScreen(
                     alpha = AllSettings.menuBallOpacity.state / 100f,
                     onClick = {
                         viewModel.switchMenu()
-                    }
+                    },
+                    recordingState = recordingState,
+                    elapsedMs = elapsedMs,
+                    onPauseRecording = { GameRecorder.pause() },
+                    onResumeRecording = { GameRecorder.resume() },
+                    onStopRecording = stopRecording
                 )
             }
         }

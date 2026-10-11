@@ -56,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.recorder.RecordingState
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.FpsDisplayMode
@@ -114,6 +115,9 @@ fun GameMenuSubscreen(
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
     onInputMethod: () -> Unit,
+    recordingState: RecordingState = RecordingState.IDLE,
+    onStartRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {},
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
     onEditLayout: () -> Unit,
@@ -198,6 +202,9 @@ fun GameMenuSubscreen(
                 enableTerracotta = enableTerracotta,
                 onOpenTerracottaMenu = onOpenTerracottaMenu,
                 onRefreshWindowSize = onRefreshWindowSize,
+                recordingState = recordingState,
+                onStartRecording = onStartRecording,
+                onStopRecording = onStopRecording,
                 onShowToast = onShowToast
             )
         }
@@ -211,6 +218,9 @@ private fun GameActionContent(
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
+    recordingState: RecordingState,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit,
     onShowToast: (AndroidStringText, Int) -> Unit,
     modifier: Modifier = Modifier,
     color: Color = cardColor(false),
@@ -240,6 +250,24 @@ private fun GameActionContent(
                 modifier = Modifier.fillMaxWidth(),
                 text = stringResource(R.string.game_menu_option_switch_log),
                 onClick = onSwitchLog,
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+        //录屏
+        item {
+            val isStopping = recordingState == RecordingState.STOPPING
+            MenuTextButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(
+                    when (recordingState) {
+                        RecordingState.IDLE -> R.string.game_menu_option_screen_recorder
+                        RecordingState.STOPPING -> R.string.recorder_saving
+                        else -> R.string.recorder_stop_and_save
+                    }
+                ),
+                enabled = !isStopping,
+                onClick = if (recordingState == RecordingState.IDLE) onStartRecording else onStopRecording,
                 color = color,
                 contentColor = contentColor,
             )

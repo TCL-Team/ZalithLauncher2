@@ -70,6 +70,10 @@ sealed interface NormalNavKey : TitledNavKey {
     ) : NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.versions_overview_log)
     }
+    /** 录屏管理屏幕 */
+    @Serializable data object Recordings : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.page_title_recordings)
+    }
 
     /** 设置嵌套子屏幕 */
     sealed interface Settings : NormalNavKey {

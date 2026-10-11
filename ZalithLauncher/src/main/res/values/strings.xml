@@ -62,6 +62,16 @@
     <string name="page_title_version_manage">Manage Versions</string>
     <string name="page_title_account_list">Account List</string>
     <string name="page_title_select_files">Select Path</string>
+    <string name="page_title_recordings">Recordings</string>
+    <string name="recordings_empty">No recordings yet.\nStart recording from the in-game menu.</string>
+    <string name="recordings_permission_required">Allow storage access to view recordings on Android 9 and below.</string>
+    <string name="recordings_play">Play</string>
+    <string name="recordings_share">Share</string>
+    <string name="recordings_rename">Rename</string>
+    <string name="recordings_rename_hint">File name (without extension)</string>
+    <string name="recordings_reveal">Show in File Manager</string>
+    <string name="recordings_delete_title">Delete recording?</string>
+    <string name="recordings_delete_message">\"%s\" will be permanently deleted.</string>
     <!-- Files -->
     <string name="files_browse_folder">Browse Folder</string>
     <string name="files_importing">Importing Files</string>
@@ -418,6 +428,14 @@
     <string name="game_menu_title">Game Menu</string>
     <string name="game_menu_option_force_close_text">Forcing the currently running game to close may cause save data corruption or prevent settings from being saved. Avoid this action unless necessary.</string>
     <string name="game_menu_option_switch_log">Log Output</string>
+    <string name="game_menu_option_screen_recorder">Start screen recording</string>
+    <string name="recorder_started">Screen recording started</string>
+    <string name="recorder_failed">Could not start recording. Check storage access and try again.</string>
+    <string name="recorder_permission_required">Storage permission is required to save recordings on this Android version.</string>
+    <string name="recorder_saving">Saving recording…</string>
+    <string name="recorder_stop_and_save">Stop and save recording</string>
+    <string name="recorder_pause">Pause recording</string>
+    <string name="recorder_resume">Resume recording</string>
     <string name="game_menu_option_input_method">Switch Input Method</string>
     <string name="game_menu_option_auto_show_ime">Auto-show Input Method (SDL)</string>
     <string name="game_menu_option_switch_fps">FPS Display</string>

@@ -97,6 +97,7 @@ import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
 import com.movtery.zalithlauncher.ui.screens.content.LicenseScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
+import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionExportScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionSettingsScreen
@@ -202,6 +203,12 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
+                toRecordingsScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.Recordings
+                    )
+                },
                 openFileManager = {
                     eventViewModel.sendEvent(
                         EventViewModel.Event.OpenFileManager(
@@ -258,12 +265,14 @@ private fun <E: TitledNavKey> TopBar(
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
+    toRecordingsScreen: () -> Unit,
     openFileManager: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
 
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
+    val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
 
@@ -422,6 +431,15 @@ private fun <E: TitledNavKey> TopBar(
                     text = stringResource(R.string.terracotta),
                     onClick = {
                         if (!inMultiplayerScreen) toMultiplayerScreen()
+                    },
+                )
+
+                TopBarRailItem(
+                    selected = inRecordingsScreen,
+                    painter = painterResource(R.drawable.ic_videocam_outlined),
+                    text = stringResource(R.string.page_title_recordings),
+                    onClick = {
+                        if (!inRecordingsScreen) toRecordingsScreen()
                     },
                 )
 
@@ -656,6 +674,9 @@ private fun NavigationUI(
                         key = key,
                         backStackViewModel = screenBackStackModel,
                     )
+                }
+                entry<NormalNavKey.Recordings> {
+                    RecordingsScreen(backStackViewModel = screenBackStackModel)
                 }
             }
         )
