@@ -587,7 +587,7 @@ class AccountManageViewModel @Inject constructor(
                         th.isReloginRequired() -> {
                             onIntent(
                                 AccountManageIntent.UpdateAccountOp(
-                                    AccountOperation.OnRelogin(account)
+                                    AccountOperation.OnFailed(th)
                                 )
                             )
                         }
@@ -638,7 +638,7 @@ class AccountManageViewModel @Inject constructor(
                     if (th.isReloginRequired()) {
                         onIntent(
                             AccountManageIntent.UpdateAccountOp(
-                                AccountOperation.OnRelogin(account)
+                                AccountOperation.OnFailed(th)
                             )
                         )
                     } else {
@@ -724,7 +724,7 @@ class AccountManageViewModel @Inject constructor(
                         th.isReloginRequired() -> {
                             onIntent(
                                 AccountManageIntent.UpdateAccountOp(
-                                    AccountOperation.OnRelogin(account)
+                                    AccountOperation.OnFailed(th)
                                 )
                             )
                         }
@@ -796,7 +796,7 @@ class AccountManageViewModel @Inject constructor(
             onIntent(
                 AccountManageIntent.UpdateAccountOp(
                     if (th.isReloginRequired()) {
-                        AccountOperation.OnRelogin(account)
+                        AccountOperation.OnFailed(th)
                     } else {
                         AccountOperation.OnFailed(th)
                     }
@@ -823,7 +823,7 @@ class AccountManageViewModel @Inject constructor(
             onFailed = { th ->
                 onIntent(
                     AccountManageIntent.UpdateAccountOp(
-                        AccountOperation.OnRelogin(account, error = th)
+                        AccountOperation.OnFailed(th)
                     )
                 )
             }

@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.parcelize.Parcelize
 import org.apache.commons.io.FileUtils
 import java.io.File
@@ -39,6 +40,7 @@ import java.util.UUID
 
 private const val TAG = "Account"
 
+@Serializable
 @Keep
 @Parcelize
 @Entity(tableName = "accounts")

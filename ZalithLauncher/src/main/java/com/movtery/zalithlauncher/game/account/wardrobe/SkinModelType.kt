@@ -21,10 +21,12 @@ package com.movtery.zalithlauncher.game.account.wardrobe
 import android.os.Parcelable
 import androidx.annotation.Keep
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
 /**
  * 皮肤模型枚举
  */
+@Serializable
 @Keep
 @Parcelize
 enum class SkinModelType(
