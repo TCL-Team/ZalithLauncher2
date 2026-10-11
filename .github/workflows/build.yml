@@ -50,9 +50,28 @@ jobs:
           add-job-summary: "on-failure"
 
       - name: Build APK for ${{ matrix.arch }}
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }}
+          log_file="$RUNNER_TEMP/gradle-build.log"
+          if ./gradlew ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }} --console=plain 2>&1 | tee "$log_file"; then
+            exit 0
+          else
+            build_status=${PIPESTATUS[0]}
+            {
+              echo '### Gradle build diagnostics'
+              echo '```text'
+              grep -E '(^e:|^error:|^FAILURE:|^\* What went wrong:|Execution failed for task|Could not resolve|Unresolved reference|Type mismatch|\.java:[0-9]+: error:)' "$log_file" | tail -n 60 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              printf '::error title=Gradle build diagnostic::%s\n' "$line"
+            done < <(grep -E '(^e:|^error:|^FAILURE:|^\* What went wrong:|Execution failed for task|Could not resolve|Unresolved reference|Type mismatch|\.java:[0-9]+: error:)' "$log_file" | tail -n 60 || true)
+            exit "$build_status"
+          fi
 
       - name: Upload Release APK for ${{ matrix.arch }}
         if: inputs.variant == 'Release'
