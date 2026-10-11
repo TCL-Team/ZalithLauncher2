@@ -238,7 +238,7 @@ fun VersionSettingsScreen(
     ) { isVisible ->
         Row(modifier = Modifier.fillMaxSize()) {
             val loaderInfo = remember(key) {
-                key.version.getVersionInfo()?.loaderInfo
+                key.version.getVersionInfo()?.primaryLoader
             }
 
             TabMenu(

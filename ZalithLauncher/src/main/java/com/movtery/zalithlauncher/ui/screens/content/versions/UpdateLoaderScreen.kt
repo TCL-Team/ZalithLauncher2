@@ -535,7 +535,7 @@ fun UpdateLoaderScreen(
     val versionInfo = remember(version) {
         version.getVersionInfo() ?: error("Using the \"Loader Update Screen\" is not supported for versions with unspecified version information.")
     }
-    if (versionInfo.loaderInfo?.loader?.autoDownloadable == false) {
+    if (versionInfo.primaryLoader?.loader?.autoDownloadable == false) {
         //不支持自动安装，不允许进入这个屏幕
         //理论上不会走到这里，以防万一，这里进行兜底
         backToMainScreen()
@@ -549,7 +549,7 @@ fun UpdateLoaderScreen(
     ) {
         AddonsViewModel(
             gameVersion = versionInfo.minecraftVersion,
-            loaderInfo = versionInfo.loaderInfo,
+            loaderInfo = versionInfo.primaryLoader,
             loaderSupports = loaderSupports
         )
     }
@@ -688,7 +688,7 @@ fun UpdateLoaderScreen(
                         enabled = viewModel.canUpdate,
                         onClick = {
                             onInstall(
-                                viewModel.currentAddon.generateDiff(versionInfo.loaderInfo),
+                                viewModel.currentAddon.generateDiff(versionInfo.primaryLoader),
                                 GameDownloadInfo(
                                     gameVersion = versionInfo.minecraftVersion,
                                     customVersionName = version.getVersionName(),

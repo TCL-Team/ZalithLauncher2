@@ -204,11 +204,13 @@ private fun isVersionAdapt(
             false //游戏版本不匹配
         } else {
             //判断模组加载器匹配情况
-            val loaderInfo = currentVersion.getVersionInfo()?.loaderInfo
+            val loaderInfos = currentVersion.getVersionInfo()?.loaderInfos.orEmpty()
             when {
                 loader == null -> true //资源没有模组加载器信息，直接判定适配
-                loaderInfo == null -> false //资源有模组加载器，但当前版本没有模组加载器信息，不适配
-                else -> loaderInfo.loader.displayName.equals(loader.getDisplayName(), true)
+                loaderInfos.isEmpty() -> false //资源有模组加载器，但当前版本没有模组加载器信息，不适配
+                else -> loaderInfos.any { loaderInfo ->
+                    loaderInfo.loader.displayName.equals(loader.getDisplayName(), true)
+                }
             }
         }
     }

@@ -150,12 +150,12 @@ fun ModifyVersionScreen(
                     modifyViewModel = viewModel,
                     selectedGameVersion = selectedGameVersion,
                     onSelectGameVersion = {
-                        backStack.navigateTo(NormalNavKey.Versions.SelectGameVersion)
+                        backStack.navigateTo(NormalNavKey.DownloadGame.SelectGameVersion)
                     },
                     onModify = onModify
                 )
             }
-            entry<NormalNavKey.Versions.SelectGameVersion> {
+            entry<NormalNavKey.DownloadGame.SelectGameVersion> {
                 SelectGameVersionScreen(
                     host = SelectGameVersionHost.VersionSettings(
                         mainScreenKey = mainScreenKey,

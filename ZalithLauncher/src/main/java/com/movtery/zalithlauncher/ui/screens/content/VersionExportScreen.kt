@@ -415,7 +415,7 @@ private fun rememberExportModpackViewModel(
         mcVersion = info.minecraftVersion,
         versionName = version.getVersionName(),
         gamePath = version.getGameDir(),
-        loader = info.loaderInfo?.let { loader ->
+        loader = info.primaryLoader?.let { loader ->
             ExportInfo.LoaderVersion(loader.loader, loader.version)
         }
     )

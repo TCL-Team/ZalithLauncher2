@@ -154,6 +154,17 @@ class CurrentAddon {
 
     private val loaderMap = allLoaders.associateBy { it.loader }
 
+    fun isCompatibleWithSelection(
+        candidate: AddonVersion,
+        loader: ModLoader,
+        addonList: AddonList
+    ): Boolean = allLoaders.all { selectedState ->
+        if (selectedState.loader == loader) return@all true
+        val selectedVersion = selectedState.versionState.value ?: return@all true
+        !areMutuallyExclusive(candidate, loader, selectedState.loader, addonList) &&
+                !areMutuallyExclusive(selectedVersion, selectedState.loader, loader, addonList)
+    }
+
     fun updateIncompatibleState(
         thisLoader: ModLoader,
         addonList: AddonList
@@ -748,7 +759,7 @@ fun BabricList(
     )
 }
 
-private fun isOptiFineCompatibleWithForge(
+fun isOptiFineCompatibleWithForge(
     optifine: OptiFineVersion,
     forge: ForgeVersion
 ): Boolean = optifine.forgeVersion?.let {

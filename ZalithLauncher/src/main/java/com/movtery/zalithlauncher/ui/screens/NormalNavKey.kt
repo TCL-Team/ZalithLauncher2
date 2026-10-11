@@ -137,6 +137,10 @@ sealed interface NormalNavKey : TitledNavKey {
         @Serializable data object Config : Versions {
             @Contextual override val title: AndroidStringText = androidText(R.string.versions_settings_config)
         }
+        /** 修改版本的游戏版本与模组加载器 */
+        @Serializable data object ModifyVersion : Versions {
+            @Contextual override val title: AndroidStringText = androidText(R.string.versions_modify_version)
+        }
         /** 更新版本的模组加载器 */
         @Serializable data object UpdateLoader : Versions {
             @Contextual override var title: AndroidStringText = androidText(R.string.versions_update_loader)

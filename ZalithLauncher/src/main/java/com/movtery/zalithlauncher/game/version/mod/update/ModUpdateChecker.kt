@@ -40,7 +40,7 @@ object ModUpdateChecker {
     suspend fun checkVersion(version: Version) {
         val versionInfo = version.getVersionInfo() ?: return
         val minecraft = versionInfo.minecraftVersion
-        val modLoader = versionInfo.loaderInfo?.loader ?: return
+        val modLoader = versionInfo.primaryLoader?.loader ?: return
         val modsDir = VersionFolders.MOD.getDir(version.getGameDir())
         if (!modsDir.exists()) return
 

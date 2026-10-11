@@ -117,8 +117,8 @@ fun DownloadModScreen(
         onInstallWithDependencies = { version, deps, gameVersions, classes ->
             val failedDependencies = mutableListOf<String>()
 
-            val targetLoaders = gameVersions.mapNotNull { ver ->
-                ver.getVersionInfo()?.loaderInfo?.loader
+            val targetLoaders = gameVersions.flatMap { ver ->
+                ver.getVersionInfo()?.loaderInfos.orEmpty().map { it.loader }
             }.distinct().mapNotNull { loader ->
                 when (loader) {
                     ModLoader.FABRIC, ModLoader.LEGACY_FABRIC -> "fabric"
