@@ -24,6 +24,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -139,6 +141,7 @@ fun BoxScope.MinecraftHotbar(
     sendKeycode: (key: Int) -> Unit,
     isGrabbing: Boolean = false,
     resolutionRatio: Int,
+    displayOffset: IntOffset = IntOffset.Zero,
     onOccupiedPointer: (PointerId) -> Unit,
     onReleasePointer: (PointerId) -> Unit
 ) {
@@ -194,6 +197,7 @@ fun BoxScope.MinecraftHotbar(
         modifier = Modifier
             .size(hotbarSize)
             .align(Alignment.BottomCenter)
+            .offset { IntOffset(x = 0, y = -displayOffset.y) }
             .then(
                 if (rule == HotbarRule.Custom) Modifier.background(Color.Red.copy(alpha = hotbarUpdateAnim.value))
                 else Modifier

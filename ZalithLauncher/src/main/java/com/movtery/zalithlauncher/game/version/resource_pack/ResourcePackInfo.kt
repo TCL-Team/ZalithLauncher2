@@ -42,6 +42,10 @@ data class ResourcePackInfo(
     /** 资源包的图标 */
     val icon: ByteArray?
 ) {
+    /** Whether the pack file is currently enabled in the game directory. */
+    val isEnabled: Boolean
+        get() = !file.name.endsWith(".disabled", ignoreCase = true)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

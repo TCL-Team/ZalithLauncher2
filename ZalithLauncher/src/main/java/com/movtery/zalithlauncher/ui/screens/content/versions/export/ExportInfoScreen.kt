@@ -83,7 +83,7 @@ private fun rememberOptionalItemIDList(
         buildList {
             if (options.requireAuthor) add(OPTIONAL_AUTHOR)
             if (options.requireSummary) add(OPTION_DESCRIPTION)
-            if (options.requireJvmArgs) add(OPTIONAL_JVM_ARGS)
+            if (options.requireGameArgs) add(OPTIONAL_JVM_ARGS)
             if (options.requireJavaArgs) add(OPTIONAL_JAVA_ARGS)
             if (options.requireWebsiteUrl) add(OPTIONAL_WEBSITE_URL)
             if (options.requireMinMemory) add(OPTIONAL_MIN_MEMORY)
@@ -232,7 +232,7 @@ fun ExportInfoScreen(
                 }
             }
 
-            if (info.packType.options.requireJvmArgs) {
+            if (info.packType.options.requireGameArgs) {
                 //游戏参数
                 animatedItem(scope) { yOffset ->
                     TextInputSettingsCard(
@@ -241,10 +241,10 @@ fun ExportInfoScreen(
                             .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
                         position = optionalItemIDs.rememberCardPosition(OPTIONAL_JVM_ARGS),
                         title = stringResource(R.string.versions_export_pack_jvm_args),
-                        value = info.jvmArgs,
+                        value = info.gameArgs,
                         onValueChange = { new ->
                             onInfoEdited(
-                                info.copy(jvmArgs = new.toSingleLine())
+                                info.copy(gameArgs = new.toSingleLine())
                             )
                         },
                         singleLine = true,

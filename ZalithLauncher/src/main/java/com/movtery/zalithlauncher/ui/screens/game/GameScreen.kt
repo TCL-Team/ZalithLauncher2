@@ -817,6 +817,7 @@ fun GameScreen(
                     CallbackBridge.sendKeyPress(keycode)
                 },
                 isGrabbing = isGrabbing,
+                resolutionRatio = AllSettings.resolutionRatio.state,
                 displayOffset = gameDisplayLayout.offset,
                 onOccupiedPointer = { viewModel.occupiedPointers.add(it) },
                 onReleasePointer = { viewModel.occupiedPointers.remove(it) }
@@ -1228,11 +1229,7 @@ private fun MouseControlLayout(
             },
             isMoveOnlyPointer = isMoveOnlyPointer,
             onOccupiedPointer = onOccupiedPointer,
-            onReleasePointer = onReleasePointer,
-            enableScrollGesture = AllSettings.gestureControl.state,
-            onScrollGesture = { scroll ->
-                CallbackBridge.sendScroll(scroll.x.toDouble(), scroll.y.toDouble())
-            }
+            onReleasePointer = onReleasePointer
         )
     }
 }
