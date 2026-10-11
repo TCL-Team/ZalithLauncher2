@@ -85,6 +85,7 @@ import com.movtery.layer_controller.layout.loadLayoutFromFile
 import com.movtery.layer_controller.observable.DefaultObservableJoystickStyle
 import com.movtery.layer_controller.observable.ObservableJoystickStyle
 import com.movtery.layer_controller.observable.ObservableSpecial
+import com.movtery.layer_controller.observable.cloneNew
 import com.movtery.layer_controller.utils.widgetPosition
 import com.movtery.layer_controller.observable.ObservableControlLayout
 import com.movtery.zalithlauncher.R
@@ -243,7 +244,7 @@ private class GameViewModel(
     }
 
     /** 启动器默认摇杆样式 */
-    var launcherJoystickStyle by mutableStateOf(DefaultObservableJoystickStyle)
+    var launcherJoystickStyle by mutableStateOf(DefaultObservableJoystickStyle.cloneNew())
 
     /** 保存启动器默认摇杆样式 */
     fun saveLauncherJoystickStyle(

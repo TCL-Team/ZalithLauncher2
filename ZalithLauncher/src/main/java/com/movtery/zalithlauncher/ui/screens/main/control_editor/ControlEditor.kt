@@ -57,6 +57,7 @@ import com.movtery.layer_controller.data.lang.createTranslatable
 import com.movtery.layer_controller.event.ClickEvent
 import com.movtery.layer_controller.layout.createNewLayer
 import com.movtery.layer_controller.observable.DefaultObservableJoystickStyle
+import com.movtery.layer_controller.observable.cloneNew
 import com.movtery.layer_controller.observable.ObservableButtonStyle
 import com.movtery.layer_controller.observable.ObservableControlLayer
 import com.movtery.layer_controller.observable.ObservableWidget
@@ -390,7 +391,7 @@ fun BoxWithConstraintsScope.ControlEditor(
             viewModel.removeStyle(style)
         },
         onCreateJoystickStyle = {
-            special.setJoystickStyle(DefaultObservableJoystickStyle)
+            special.setJoystickStyle(DefaultObservableJoystickStyle.cloneNew())
             viewModel.editorOperation = EditorOperation.EditJoystickStyle
         },
         onDeleteJoystickStyle = {

@@ -156,9 +156,11 @@ fun loadLayoutFromString(jsonString: String): ControlLayout {
         if (version < EDITOR_VERSION) layout = updateLayoutToNew(layout)
 
         if (legacyJoystickStyle != null) {
-            //迁移至新版摇杆样式列表
+            // Keep the legacy style available to old joystick widgets and also
+            // use it as the launcher-level joystick override.
             layout = layout.copy(
-                joystickStyles = layout.joystickStyles + legacyJoystickStyle
+                joystickStyles = layout.joystickStyles + legacyJoystickStyle,
+                special = ControlLayout.Special(joystickStyle = legacyJoystickStyle)
             )
         }
 
