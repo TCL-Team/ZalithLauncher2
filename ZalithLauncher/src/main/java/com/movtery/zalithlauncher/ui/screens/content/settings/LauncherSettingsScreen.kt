@@ -165,15 +165,24 @@ fun LauncherSettingsScreen(
                         updateOperation = { customColorOperation = it }
                     )
 
-                    EnumSettingsCard(
+                    val gamingStyle = AllSettings.launcherGamingStyle.state
+                    SwitchSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Top,
+                        unit = AllSettings.launcherGamingStyle,
+                        title = stringResource(R.string.settings_launcher_gaming_style_title),
+                        summary = stringResource(R.string.settings_launcher_gaming_style_summary)
+                    )
+
+                    EnumSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
                         unit = AllSettings.launcherColorTheme,
                         title = stringResource(R.string.settings_launcher_color_theme_title),
                         summary = stringResource(R.string.settings_launcher_color_theme_summary),
                         entries = ColorThemeType.entries,
                         getRadioEnable = { enum ->
-                            if (enum == ColorThemeType.DYNAMIC) Build.VERSION.SDK_INT >= Build.VERSION_CODES.S else true
+                            !gamingStyle && (enum != ColorThemeType.DYNAMIC || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                         },
                         getRadioText = { enum ->
                             when (enum) {
@@ -200,6 +209,7 @@ fun LauncherSettingsScreen(
                         unit = AllSettings.launcherDarkMode,
                         items = DarkMode.entries,
                         title = stringResource(R.string.settings_launcher_dark_mode_title),
+                        enabled = !gamingStyle,
                         getItemText = { stringResource(it.textRes) }
                     )
 

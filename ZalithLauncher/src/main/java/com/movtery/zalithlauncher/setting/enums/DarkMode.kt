@@ -43,9 +43,10 @@ enum class DarkMode(val textRes: Int) {
  */
 @Composable
 fun isLauncherInDarkTheme(): Boolean {
+    val gamingStyle = AllSettings.launcherGamingStyle.state
     val value = AllSettings.launcherDarkMode.state
-    return key(value) {
-        when (value) {
+    return key(gamingStyle, value) {
+        if (gamingStyle) true else when (value) {
             DarkMode.Enable -> true
             DarkMode.Disable -> false
             DarkMode.FollowSystem -> isSystemInDarkTheme()

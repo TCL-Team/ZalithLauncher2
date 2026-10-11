@@ -27,6 +27,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,9 +67,11 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
@@ -178,7 +181,8 @@ fun MainScreen(
             TopBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .height(56.dp),
                 mainScreenKey = mainScreenKey,
                 inLauncherScreen = inLauncherScreen,
                 taskRunning = tasks.isEmpty(),
@@ -279,187 +283,230 @@ private fun <E: TitledNavKey> TopBar(
     CompositionLocalProvider(
         LocalContentColor provides contentColor
     ) {
-        ConstraintLayout(modifier = modifier) {
-            val (backCenter, title, endButtons) = createRefs()
-
-            val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-
-            Row(
+        Surface(
+            modifier = modifier,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = contentColor,
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
+            )
+        ) {
+            ConstraintLayout(
                 modifier = Modifier
-                    .constrainAs(backCenter) {
-                        start.linkTo(parent.start)
-                        top.linkTo(parent.top)
-                        bottom.linkTo(parent.bottom)
-                    }
-                    .fillMaxHeight()
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp)
             ) {
-                AnimatedVisibility(
-                    visible = !inLauncherScreen
-                ) {
-                    Row(modifier = Modifier.fillMaxHeight()) {
-                        Spacer(Modifier.width(12.dp))
+                val (backCenter, title, endButtons) = createRefs()
 
-                        IconButton(
-                            modifier = Modifier.fillMaxHeight(),
-                            onClick = {
-                                if (!inLauncherScreen) {
-                                    //不在主屏幕时才允许返回
-                                    backDispatcher?.onBackPressed() ?: run {
-                                        onScreenBack()
+                val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+
+                Row(
+                    modifier = Modifier
+                        .constrainAs(backCenter) {
+                            start.linkTo(parent.start)
+                            top.linkTo(parent.top)
+                            bottom.linkTo(parent.bottom)
+                        }
+                        .fillMaxHeight()
+                ) {
+                    AnimatedVisibility(
+                        visible = !inLauncherScreen
+                    ) {
+                        Row(modifier = Modifier.fillMaxHeight()) {
+                            Spacer(Modifier.width(12.dp))
+
+                            IconButton(
+                                modifier = Modifier.fillMaxHeight(),
+                                onClick = {
+                                    if (!inLauncherScreen) {
+                                        //不在主屏幕时才允许返回
+                                        backDispatcher?.onBackPressed() ?: run {
+                                            onScreenBack()
+                                        }
                                     }
                                 }
+                            ) {
+                                Icon(
+                                    modifier = Modifier.size(24.dp),
+                                    painter = painterResource(R.drawable.ic_arrow_back),
+                                    contentDescription = stringResource(R.string.generic_back)
+                                )
                             }
-                        ) {
-                            Icon(
-                                modifier = Modifier.size(24.dp),
-                                painter = painterResource(R.drawable.ic_arrow_back),
-                                contentDescription = stringResource(R.string.generic_back)
-                            )
-                        }
 
-                        IconButton(
-                            modifier = Modifier.fillMaxHeight(),
-                            onClick = {
-                                if (!inLauncherScreen) {
-                                    //不在主屏幕时才允许回到主页面
-                                    toMainScreen()
+                            IconButton(
+                                modifier = Modifier.fillMaxHeight(),
+                                onClick = {
+                                    if (!inLauncherScreen) {
+                                        //不在主屏幕时才允许回到主页面
+                                        toMainScreen()
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_home_filled),
+                                    contentDescription = stringResource(R.string.generic_main_menu)
+                                )
                             }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_home_filled),
-                                contentDescription = stringResource(R.string.generic_main_menu)
-                            )
                         }
                     }
                 }
-            }
-            val parentRes = mainScreenKey?.title
-            val childRes = (mainScreenKey as? BackStackNavKey<*>)?.currentKey?.title
+                val parentRes = mainScreenKey?.title
+                val childRes = (mainScreenKey as? BackStackNavKey<*>)?.currentKey?.title
 
-            Crossfade(
-                modifier = Modifier.constrainAs(title) {
-                    centerVerticallyTo(parent)
-                    start.linkTo(backCenter.end, margin = 16.dp)
-                },
-                targetState = parentRes to childRes
-            ) { (parent, child) ->
-                val style = MaterialTheme.typography.titleMedium
-                val softWarp = false
-                val maxLines = 1
+                Crossfade(
+                    modifier = Modifier.constrainAs(title) {
+                        centerVerticallyTo(parent)
+                        start.linkTo(backCenter.end, margin = 16.dp)
+                        end.linkTo(endButtons.start, margin = 8.dp)
+                        width = Dimension.fillToConstraints
+                    },
+                    targetState = parentRes to childRes
+                ) { (parent, child) ->
+                    val style = if (parent == null) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.titleMedium
+                    }
+                    val softWarp = false
+                    val maxLines = 1
 
-                if (parent == null) {
-                    if (festivals.isEmpty()) {
-                        Text(
-                            text = BuildKeys.LAUNCHER_IDENTIFIER,
+                    if (parent == null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ) {
+                                Icon(
+                                    modifier = Modifier.padding(6.dp).size(22.dp),
+                                    painter = painterResource(R.drawable.ic_videogame_asset_outlined),
+                                    contentDescription = null
+                                )
+                            }
+                            if (festivals.isEmpty()) {
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    text = BuildKeys.LAUNCHER_IDENTIFIER,
+                                    style = style,
+                                    softWrap = softWarp,
+                                    maxLines = maxLines,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            } else {
+                                FestivalTitleText(
+                                    modifier = Modifier.weight(1f),
+                                    festivals = festivals,
+                                    style = style,
+                                    maxLines = maxLines
+                                )
+                            }
+                        }
+                    } else {
+                        val titleText = if (child != null) {
+                            androidText(parent, androidText(" - "), child)
+                        } else {
+                            parent
+                        }
+
+                        AndroidStringText(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = titleText,
                             style = style,
                             softWrap = softWarp,
-                            maxLines = maxLines
-                        )
-                    } else {
-                        FestivalTitleText(
-                            festivals = festivals,
-                            style = style,
-                            maxLines = maxLines
+                            maxLines = maxLines,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    val titleText = if (child != null) {
-                        androidText(parent, androidText(" - "), child)
-                    } else {
-                        parent
-                    }
-
-                    AndroidStringText(
-                        text = titleText,
-                        style = style,
-                        softWrap = softWarp,
-                        maxLines = maxLines
-                    )
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .constrainAs(endButtons) {
-                        top.linkTo(parent.top)
-                        bottom.linkTo(parent.bottom)
-                        end.linkTo(parent.end, margin = 12.dp)
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AnimatedVisibility(
-                    visible = !(isTasksExpanded || taskRunning),
-                    enter = slideInVertically(
-                        initialOffsetY = { -50 }
-                    ) + fadeIn(),
-                    exit = slideOutVertically(
-                        targetOffsetY = { -50 }
-                    ) + fadeOut()
+                Row(
+                    modifier = Modifier
+                        .constrainAs(endButtons) {
+                            top.linkTo(parent.top)
+                            bottom.linkTo(parent.bottom)
+                            end.linkTo(parent.end, margin = 12.dp)
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(shape = MaterialTheme.shapes.large)
-                            .clickable { changeExpandedState() }
-                            .padding(all = 8.dp)
-                            .width(120.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    AnimatedVisibility(
+                        visible = !(isTasksExpanded || taskRunning),
+                        enter = slideInVertically(
+                            initialOffsetY = { -50 }
+                        ) + fadeIn(),
+                        exit = slideOutVertically(
+                            targetOffsetY = { -50 }
+                        ) + fadeOut()
                     ) {
-                        LinearProgressIndicator(modifier = Modifier.weight(1f))
+                        Row(
+                            modifier = Modifier
+                                .clip(shape = MaterialTheme.shapes.large)
+                                .clickable { changeExpandedState() }
+                                .padding(all = 8.dp)
+                                .width(120.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LinearProgressIndicator(modifier = Modifier.weight(1f))
+                            Icon(
+                                modifier = Modifier.size(22.dp),
+                                painter = painterResource(R.drawable.ic_assignment_filled),
+                                contentDescription = stringResource(R.string.main_task_menu)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = openFileManager
+                    ) {
                         Icon(
-                            modifier = Modifier.size(22.dp),
-                            painter = painterResource(R.drawable.ic_assignment_filled),
-                            contentDescription = stringResource(R.string.main_task_menu)
+                            painter = painterResource(R.drawable.ic_folder_filled),
+                            contentDescription = null
                         )
                     }
-                }
 
-                IconButton(
-                    onClick = openFileManager
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_folder_filled),
-                        contentDescription = null
+                    TopBarRailItem(
+                        selected = inMultiplayerScreen,
+                        painter = painterResource(R.drawable.ic_group_filled),
+                        text = stringResource(R.string.terracotta),
+                        onClick = {
+                            if (!inMultiplayerScreen) toMultiplayerScreen()
+                        },
+                    )
+
+                    TopBarRailItem(
+                        selected = inRecordingsScreen,
+                        painter = painterResource(R.drawable.ic_videocam_outlined),
+                        text = stringResource(R.string.page_title_recordings),
+                        onClick = {
+                            if (!inRecordingsScreen) toRecordingsScreen()
+                        },
+                    )
+
+                    TopBarRailItem(
+                        selected = inDownloadScreen,
+                        painter = painterResource(R.drawable.ic_download_2_filled),
+                        text = stringResource(R.string.generic_download),
+                        onClick = {
+                            if (!inDownloadScreen) toDownloadScreen()
+                        },
+                    )
+
+                    TopBarRailItem(
+                        selected = inSettingsScreen,
+                        painter = painterResource(R.drawable.ic_settings_filled),
+                        text = stringResource(R.string.generic_setting),
+                        onClick = {
+                            if (!inSettingsScreen) toSettingsScreen()
+                        },
                     )
                 }
-
-                TopBarRailItem(
-                    selected = inMultiplayerScreen,
-                    painter = painterResource(R.drawable.ic_group_filled),
-                    text = stringResource(R.string.terracotta),
-                    onClick = {
-                        if (!inMultiplayerScreen) toMultiplayerScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inRecordingsScreen,
-                    painter = painterResource(R.drawable.ic_videocam_outlined),
-                    text = stringResource(R.string.page_title_recordings),
-                    onClick = {
-                        if (!inRecordingsScreen) toRecordingsScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inDownloadScreen,
-                    painter = painterResource(R.drawable.ic_download_2_filled),
-                    text = stringResource(R.string.generic_download),
-                    onClick = {
-                        if (!inDownloadScreen) toDownloadScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inSettingsScreen,
-                    painter = painterResource(R.drawable.ic_settings_filled),
-                    text = stringResource(R.string.generic_setting),
-                    onClick = {
-                        if (!inSettingsScreen) toSettingsScreen()
-                    },
-                )
             }
         }
     }

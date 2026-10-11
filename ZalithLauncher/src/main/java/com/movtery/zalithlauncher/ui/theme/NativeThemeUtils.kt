@@ -79,6 +79,7 @@ data class NativeColorScheme(
  * 判断当前是否为暗色主题
  */
 fun isDarkTheme(context: Context): Boolean {
+    if (AllSettings.launcherGamingStyle.state) return true
     return when (AllSettings.launcherDarkMode.state) {
         DarkMode.Enable -> true
         DarkMode.Disable -> false
@@ -180,6 +181,7 @@ private fun buildColorScheme(seedColor: Int, darkTheme: Boolean): NativeColorSch
 }
 
 private fun getSeedColor(context: Context, darkTheme: Boolean): Int {
+    if (AllSettings.launcherGamingStyle.state) return 0xFF75D7FF.toInt()
     return when (AllSettings.launcherColorTheme.state) {
         ColorThemeType.DYNAMIC -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
