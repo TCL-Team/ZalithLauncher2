@@ -33,6 +33,10 @@ object MobileGluesRenderer : RendererInterface {
 
     override fun getMinMCVersion(): String = "1.17"
 
+    // Keep the upstream compatibility floor for launch validation, but show the requested
+    // current support baseline in the renderer picker (>= 26.2).
+    override fun getDisplayMinMCVersion(): String = "26.2"
+
     override fun getRendererEnv(): Lazy<Map<String, String>> = lazy {
         mapOf(
             "LIBGL_ES" to "3",

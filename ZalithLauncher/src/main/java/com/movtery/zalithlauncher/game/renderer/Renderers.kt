@@ -53,20 +53,23 @@ object Renderers {
         addRenderers(
             NGGL4ESRenderer,
             GL4ESRenderer,
-            KopperZinkRenderer,
-            VirGLRenderer,
-            FreedrenoRenderer,
-            PanfrostRenderer
+            KopperZinkRenderer
         )
 
-        // The upstream APK currently ships MobileGlues for selected ABIs only. Don't expose it
-        // on an ABI where its native library was not bundled into this launcher build.
+        // Keep MobileGlues next to Zink in the picker, but only expose it on ABIs where the
+        // upstream native library was bundled into this launcher build.
         val mobileGluesAvailable = runCatching {
             File(PathManager.DIR_NATIVE_LIB, MobileGluesRenderer.getRendererLibrary()).isFile
         }.getOrDefault(false)
         if (mobileGluesAvailable) {
             addRenderer(MobileGluesRenderer)
         }
+
+        addRenderers(
+            VirGLRenderer,
+            FreedrenoRenderer,
+            PanfrostRenderer
+        )
     }
 
     /**
