@@ -25,6 +25,7 @@ import com.movtery.zalithlauncher.game.plugin.ApkPlugin
 import com.movtery.zalithlauncher.game.plugin.ApkPluginManager
 import com.movtery.zalithlauncher.game.plugin.cacheAppIcon
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.path.PathManager
 
 /**
  * FCL 驱动器插件
@@ -54,6 +55,34 @@ object DriverPluginManager: ApkPluginManager() {
                 isLauncher = true
             )
         )
+        scanExternalDrivers(context)
+    }
+
+    /**
+     * Scan user-installed drivers extracted under the launcher's drivers directory.
+     */
+    fun scanExternalDrivers(context: Context) {
+        val driversDir = PathManager.DIR_DRIVERS
+        driverList.removeAll { it.isExternal }
+        if (!driversDir.exists()) return
+
+        driversDir.listFiles()?.forEach { directory ->
+            if (!directory.isDirectory) return@forEach
+            val hasNativeLibraries = directory.listFiles { file -> file.extension == "so" }
+                ?.isNotEmpty() == true
+            if (!hasNativeLibraries) return@forEach
+
+            driverList.add(
+                Driver(
+                    id = "external_${directory.name}",
+                    name = directory.name,
+                    summary = context.getString(R.string.settings_renderer_external_driver),
+                    path = directory.absolutePath,
+                    isLauncher = false,
+                    isExternal = true
+                )
+            )
+        }
     }
 
     /**
