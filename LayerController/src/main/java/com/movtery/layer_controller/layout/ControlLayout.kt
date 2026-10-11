@@ -152,7 +152,7 @@ fun loadLayoutFromString(jsonString: String): ControlLayout {
         } else {
             jsonObject
         }
-        var layout = layoutJson.decodeFromJsonElement<ControlLayout>(layoutJsonObject)
+        var layout = layoutJson.decodeFromJsonElement(ControlLayout.serializer(), layoutJsonObject)
         if (version < EDITOR_VERSION) layout = updateLayoutToNew(layout)
 
         if (legacyJoystickStyle != null) {
