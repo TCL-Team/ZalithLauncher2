@@ -1291,7 +1291,7 @@
     <string name="control_editor_exit_confirm">Exit Directly</string>
     <!-- About -->
     <string name="about_launcher_title">About Launcher</string>
-    <string name="about_launcher_version">Launcher Version: %s</string>
+    <string name="about_launcher_version">Launcher Version: %1$s · Build %2$d</string>
     <string name="about_launcher_author_movtery_title">MovTery</string>
     <string name="about_launcher_author_movtery_text">Author of %s</string>
     <string name="about_launcher_project_link">Project Link</string>
