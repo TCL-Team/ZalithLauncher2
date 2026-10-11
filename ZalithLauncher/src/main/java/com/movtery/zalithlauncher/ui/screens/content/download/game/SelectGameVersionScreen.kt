@@ -186,11 +186,21 @@ private class VersionsViewModel : ViewModel() {
     }
 }
 
+sealed interface SelectGameVersionHost {
+    data class Download(
+        val mainScreenKey: TitledNavKey?,
+        val downloadScreenKey: TitledNavKey?,
+        val downloadGameScreenKey: TitledNavKey?
+    ) : SelectGameVersionHost
+
+    data class VersionSettings(
+        val mainScreenKey: TitledNavKey?
+    ) : SelectGameVersionHost
+}
+
 @Composable
 fun SelectGameVersionScreen(
-    mainScreenKey: TitledNavKey?,
-    downloadScreenKey: TitledNavKey?,
-    downloadGameScreenKey: TitledNavKey?,
+    host: SelectGameVersionHost,
     eventViewModel: EventViewModel,
     onVersionSelect: (String) -> Unit = {}
 ) {
@@ -200,13 +210,7 @@ fun SelectGameVersionScreen(
         VersionsViewModel()
     }
 
-    BaseScreen(
-        levels1 = listOf(
-            Pair(NestedNavKey.Download::class.java, mainScreenKey),
-            Pair(NestedNavKey.DownloadGame::class.java, downloadScreenKey)
-        ),
-        Triple(NormalNavKey.DownloadGame.SelectGameVersion, downloadGameScreenKey, false)
-    ) { isVisible ->
+    val screenContent: @Composable (Boolean) -> Unit = { isVisible ->
         val yOffset by swapAnimateDpAsState(
             targetValue = (-40).dp,
             swapIn = isVisible
@@ -275,6 +279,32 @@ fun SelectGameVersionScreen(
                     }
                 }
             }
+        }
+    }
+
+    when (host) {
+        is SelectGameVersionHost.Download -> {
+            BaseScreen(
+                levels1 = listOf(
+                    Pair(NestedNavKey.Download::class.java, host.mainScreenKey),
+                    Pair(NestedNavKey.DownloadGame::class.java, host.downloadScreenKey)
+                ),
+                Triple(
+                    NormalNavKey.DownloadGame.SelectGameVersion,
+                    host.downloadGameScreenKey,
+                    false
+                )
+            ) { isVisible -> screenContent(isVisible) }
+        }
+
+        is SelectGameVersionHost.VersionSettings -> {
+            val route = NormalNavKey.DownloadGame.SelectGameVersion
+            BaseScreen(
+                levels1 = listOf(
+                    Pair(NestedNavKey.VersionSettings::class.java, host.mainScreenKey)
+                ),
+                Triple(route, route, false)
+            ) { isVisible -> screenContent(isVisible) }
         }
     }
 }

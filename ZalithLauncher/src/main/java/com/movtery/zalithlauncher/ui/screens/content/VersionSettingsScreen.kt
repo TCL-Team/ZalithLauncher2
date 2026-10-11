@@ -97,6 +97,7 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.ShadersManagerScre
 import com.movtery.zalithlauncher.ui.screens.content.versions.UpdateLoaderScreen
 import com.movtery.zalithlauncher.ui.screens.content.versions.VersionConfigScreen
 import com.movtery.zalithlauncher.ui.screens.content.versions.VersionOverViewScreen
+import com.movtery.zalithlauncher.ui.screens.content.versions.ModifyVersionScreen
 import com.movtery.zalithlauncher.ui.screens.navigateOnce
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
@@ -105,6 +106,9 @@ import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
+import com.movtery.zalithlauncher.viewmodel.ModifyOperation
+import com.movtery.zalithlauncher.viewmodel.ModifyVersionOperation
+import com.movtery.zalithlauncher.viewmodel.ModifyVersionViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import com.movtery.zalithlauncher.viewmodel.sendToast
 import io.ktor.client.plugins.HttpRequestTimeoutException
@@ -196,6 +200,17 @@ private fun rememberUpdateLoaderViewModel(
 }
 
 @Composable
+private fun rememberModifyVersionViewModel(
+    key: NestedNavKey.VersionSettings
+): ModifyVersionViewModel {
+    return viewModel(
+        key = key.toString() + "_ModifyVersion"
+    ) {
+        ModifyVersionViewModel()
+    }
+}
+
+@Composable
 fun VersionSettingsScreen(
     key: NestedNavKey.VersionSettings,
     backScreenViewModel: ScreenBackStackViewModel,
@@ -206,6 +221,7 @@ fun VersionSettingsScreen(
 ) {
     val context = LocalContext.current
     val viewModel = rememberUpdateLoaderViewModel(key = key)
+    val modifyViewModel = rememberModifyVersionViewModel(key = key)
 
     val cBackToMainScreen by rememberUpdatedState(backToMainScreen)
     DisposableEffect(key) {
@@ -232,6 +248,14 @@ fun VersionSettingsScreen(
         }
     )
 
+    ModifyVersionOperation(
+        operation = modifyViewModel.installOperation,
+        changeOperation = { modifyViewModel.installOperation = it },
+        installer = modifyViewModel.installer,
+        onModify = { payload -> modifyViewModel.modify(context, payload) },
+        onCancel = { modifyViewModel.cancel() }
+    )
+
     BaseScreen(
         screenKey = key,
         currentKey = backScreenViewModel.mainScreen.currentKey
@@ -254,6 +278,7 @@ fun VersionSettingsScreen(
                 modifier = Modifier.fillMaxHeight(),
                 key = key,
                 viewModel = viewModel,
+                modifyViewModel = modifyViewModel,
                 backScreenViewModel = backScreenViewModel,
                 versionsScreenKey = key.currentKey,
                 onCurrentKeyChange = { newKey ->
@@ -272,6 +297,7 @@ fun VersionSettingsScreen(
 private val settingItems = listOf(
     CategoryItem(NormalNavKey.Versions.OverView, { CategoryIcon(R.drawable.ic_dashboard_outlined, R.string.versions_settings_overview) }, R.string.versions_settings_overview),
     CategoryItem(NormalNavKey.Versions.Config, { CategoryIcon(R.drawable.ic_build_outlined, R.string.versions_settings_config) }, R.string.versions_settings_config),
+    CategoryItem(NormalNavKey.Versions.ModifyVersion, { CategoryIcon(R.drawable.ic_edit_outlined, R.string.versions_modify_version) }, R.string.versions_modify_version),
     CategoryItem(NormalNavKey.Versions.UpdateLoader, { CategoryIcon(R.drawable.ic_update, R.string.versions_update_loader) }, R.string.versions_update_loader),
     CategoryItem(NormalNavKey.Versions.ModsManager, { CategoryIcon(R.drawable.ic_extension_outlined, R.string.mods_manage) }, R.string.mods_manage, division = true),
     CategoryItem(NormalNavKey.Versions.SavesManager, { CategoryIcon(R.drawable.ic_public, R.string.saves_manage) }, R.string.saves_manage),
@@ -369,6 +395,7 @@ private fun NavigationUI(
     modifier: Modifier = Modifier,
     key: NestedNavKey.VersionSettings,
     viewModel: UpdateLoaderViewModel,
+    modifyViewModel: ModifyVersionViewModel,
     backScreenViewModel: ScreenBackStackViewModel,
     versionsScreenKey: TitledNavKey?,
     onCurrentKeyChange: (TitledNavKey?) -> Unit,
@@ -411,6 +438,25 @@ private fun NavigationUI(
                         version = version,
                         eventViewModel = eventViewModel,
                         submitError = submitError
+                    )
+                }
+                entry<NormalNavKey.Versions.ModifyVersion> {
+                    ModifyVersionScreen(
+                        viewModel = modifyViewModel,
+                        mainScreenKey = mainScreenKey,
+                        versionsScreenKey = versionsScreenKey,
+                        version = version,
+                        eventViewModel = eventViewModel,
+                        onModify = onModify@{ payload ->
+                            if (modifyViewModel.installOperation !is ModifyOperation.None) {
+                                return@onModify
+                            }
+                            modifyViewModel.installOperation = if (!NotificationManager.checkNotificationEnabled(context)) {
+                                ModifyOperation.WarningForNotification(payload)
+                            } else {
+                                ModifyOperation.Confirm(payload)
+                            }
+                        }
                     )
                 }
                 entry<NormalNavKey.Versions.Config> {

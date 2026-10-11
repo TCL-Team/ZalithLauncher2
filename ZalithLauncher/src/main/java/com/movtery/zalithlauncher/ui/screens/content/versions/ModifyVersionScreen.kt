@@ -158,14 +158,14 @@ fun ModifyVersionScreen(
             entry<NormalNavKey.DownloadGame.SelectGameVersion> {
                 SelectGameVersionScreen(
                     host = SelectGameVersionHost.VersionSettings(
-                        mainScreenKey = mainScreenKey,
-                        versionSettingsScreenKey = versionsScreenKey
+                        mainScreenKey = mainScreenKey
                     ),
-                    eventViewModel = eventViewModel
-                ) { selected ->
-                    selectedGameVersion = selected
-                    onBack(backStack)
-                }
+                    eventViewModel = eventViewModel,
+                    onVersionSelect = { selected ->
+                        selectedGameVersion = selected
+                        onBack(backStack)
+                    }
+                )
             }
         }
     )

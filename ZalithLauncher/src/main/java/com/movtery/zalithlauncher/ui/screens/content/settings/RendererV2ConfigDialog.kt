@@ -244,7 +244,7 @@ private fun SelectableEnvItem(
                 TitleAndSummary(
                     modifier = Modifier.fillMaxWidth(),
                     title = stringResource(R.string.settings_renderer_env_title, unit.rawEnv.key),
-                    summary = unit.summary
+                    summary = unit.title
                 )
                 Text(
                     modifier = Modifier.alpha(if (!hasCheckbox || unit.isEnabled) 0.7f else 0.38f),
@@ -316,7 +316,7 @@ private fun CustomizableEnvItem(
         ) {
             TitleAndSummary(
                 title = stringResource(R.string.settings_renderer_env_title, unit.rawEnv.key),
-                summary = unit.summary
+                summary = unit.title
             )
             SingleLineTextCheck(
                 text = unit.state,
@@ -359,7 +359,7 @@ private fun ToggleableEnvItem(
                     .weight(1f)
                     .padding(end = 16.dp),
                 title = stringResource(R.string.settings_renderer_env_title, unit.rawEnv.key),
-                summary = unit.summary
+                summary = unit.title
             )
             DefaultSwitch(
                 checked = unit.isEnabled,

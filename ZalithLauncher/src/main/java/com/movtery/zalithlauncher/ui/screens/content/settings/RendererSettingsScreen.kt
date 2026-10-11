@@ -314,7 +314,7 @@ fun RendererSettingsScreen(
                             Row {
                                 IconButton(
                                     onClick = {
-                                        eventViewModel.sendEvent(EventViewModel.Event.OpenWeb(TurnipDownloader.getRepoReleasesUrl()))
+                                        eventViewModel.sendEvent(EventViewModel.Event.OpenLink(TurnipDownloader.getRepoReleasesUrl()))
                                     }
                                 ) {
                                     Icon(
