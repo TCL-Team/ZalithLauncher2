@@ -27,6 +27,7 @@ import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.control.input.TextInputMode
 import com.movtery.zalithlauncher.ui.guide.GuideKeys
+import com.movtery.zalithlauncher.ui.screens.main.custom_home.MarkdownBlock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -110,6 +111,12 @@ class EventViewModel : ViewModel() {
         /** 分享游戏日志 */
         sealed interface LogShare : Event {
             data class ShareGameLog(val logFile: File) : LogShare
+        }
+        /** 启动器主页相关 */
+        sealed interface HomePage : Event {
+            data object Reload : HomePage
+            data object GenDocPage : HomePage
+            data class Event(val event: MarkdownBlock.Button.Event) : HomePage
         }
         /** 设备 Vulkan 检查 */
         data class VulkanCheck(val version: Version): Event
