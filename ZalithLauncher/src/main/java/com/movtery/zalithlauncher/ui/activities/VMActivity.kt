@@ -95,6 +95,7 @@ import com.movtery.zalithlauncher.game.launch.handler.JVMHandler
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
 import com.movtery.zalithlauncher.game.recorder.GameRecorder
+import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
 import com.movtery.zalithlauncher.game.recorder.GameSurfaceRegistry
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
@@ -185,6 +186,7 @@ class VMViewModel : ViewModel() {
     }
 
     private var _session: LaunchSession? = null
+    private var sessionStartTime = 0L
     val session: LaunchSession
         get() = _session ?: error("LaunchSession not initialized")
 
@@ -197,6 +199,7 @@ class VMViewModel : ViewModel() {
         exitListener: (Int, Boolean) -> Unit,
     ) {
         if (_session != null) return
+        sessionStartTime = System.currentTimeMillis()
 
         _session = when {
             bundle.getBoolean(INTENT_RUN_GAME) -> {
@@ -207,6 +210,17 @@ class VMViewModel : ViewModel() {
                     activity = activity,
                     config = config,
                     onExit = { code, isSignal ->
+                        val endTime = System.currentTimeMillis()
+                        val duration = endTime - sessionStartTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                            PlayTimeRepository.recordSession(
+                                config.version.getVersionName(),
+                                sessionStartTime,
+                                endTime
+                            )
+                        }
                         if (code == 0) {
                             val finishedCount = AllSettings.finishedGame.getValue()
                             if (finishedCount < Int.MAX_VALUE)  {
@@ -247,7 +261,14 @@ class VMViewModel : ViewModel() {
                 val launcher = JvmLauncher(
                     context = activity,
                     jvmLaunchInfo = jvmLaunchInfo,
-                    onExit = exitListener,
+                    onExit = { code, isSignal ->
+                        val duration = System.currentTimeMillis() - sessionStartTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                        }
+                        exitListener(code, isSignal)
+                    },
                     openPath = { folder ->
                         _openFolderOperation.update {
                             OpenFolderOperation.OpenFolder(folder)

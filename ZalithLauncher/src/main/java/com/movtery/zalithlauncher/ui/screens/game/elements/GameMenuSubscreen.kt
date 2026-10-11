@@ -56,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.game.recorder.RecordingState
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.setting.AllSettings
@@ -86,6 +87,7 @@ import com.movtery.zalithlauncher.utils.customResolutionRange
 import com.movtery.zalithlauncher.utils.ensureCustomResolutionInitialized
 import com.movtery.zalithlauncher.utils.getRealScreenSize
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
+import kotlin.math.roundToInt
 
 private data class IconTab(val iconRes: Int, val iconSize: Dp = 18.dp)
 
@@ -111,6 +113,8 @@ fun GameMenuSubscreen(
     closeScreen: () -> Unit,
     onForceClose: () -> Unit,
     onSwitchLog: () -> Unit,
+    onOpenPerformanceFps: () -> Unit,
+    onOpenPerformanceRam: () -> Unit,
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
@@ -120,6 +124,7 @@ fun GameMenuSubscreen(
     onStopRecording: () -> Unit = {},
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
+    onManageJoystick: () -> Unit,
     onEditLayout: () -> Unit,
     onShowToast: (AndroidStringText, Int) -> Unit
 ) {
@@ -173,6 +178,7 @@ fun GameMenuSubscreen(
                                 onInputMethod = onInputMethod,
                                 onSendKeycode = onSendKeycode,
                                 onReplacementControl = onReplacementControl,
+                                onManageJoystick = onManageJoystick,
                                 onEditLayout = onEditLayout
                             )
                         }
@@ -199,6 +205,8 @@ fun GameMenuSubscreen(
                 modifier = Modifier.weight(1f),
                 onForceClose = onForceClose,
                 onSwitchLog = onSwitchLog,
+                onOpenPerformanceFps = onOpenPerformanceFps,
+                onOpenPerformanceRam = onOpenPerformanceRam,
                 enableTerracotta = enableTerracotta,
                 onOpenTerracottaMenu = onOpenTerracottaMenu,
                 onRefreshWindowSize = onRefreshWindowSize,
@@ -215,6 +223,8 @@ fun GameMenuSubscreen(
 private fun GameActionContent(
     onForceClose: () -> Unit,
     onSwitchLog: () -> Unit,
+    onOpenPerformanceFps: () -> Unit,
+    onOpenPerformanceRam: () -> Unit,
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
@@ -270,6 +280,18 @@ private fun GameActionContent(
                 onClick = if (recordingState == RecordingState.IDLE) onStartRecording else onStopRecording,
                 color = color,
                 contentColor = contentColor,
+            )
+        }
+
+        //加载弹出提示
+        item {
+            MenuSwitchButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_menu_option_disable_loading_popup),
+                switch = AllSettings.disableLoadingPopup.state,
+                onSwitch = { AllSettings.disableLoadingPopup.save(it) },
+                color = color,
+                contentColor = contentColor
             )
         }
 
@@ -373,6 +395,25 @@ private fun GameActionContent(
                 enabled = AllSettings.showMenuBall.state
             )
         }
+        item {
+            MenuTextButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_menu_option_fps_settings),
+                onClick = onOpenPerformanceFps,
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+        item {
+            MenuTextButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_menu_option_ram_settings),
+                onClick = onOpenPerformanceRam,
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+
         //请求最高刷新率
         item {
             MenuSwitchButton(
@@ -530,8 +571,10 @@ private fun ControlOverview(
     onInputMethod: () -> Unit,
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
+    onManageJoystick: () -> Unit,
     onEditLayout: () -> Unit
 ) {
+    val display = LocalContext.current.display
     val listState = rememberLazyListState()
     val sdlEnabled by SdlBridge.enabled.collectAsState()
 
@@ -620,6 +663,70 @@ private fun ControlOverview(
                 onValueChange = { AllSettings.controlsOpacity.updateState(it) },
                 onValueChangeFinished = { AllSettings.controlsOpacity.save(it) },
                 suffix = "%",
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+        //帧率上限
+        item {
+            MenuSwitchButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.settings_renderer_fps_limit_title),
+                switch = AllSettings.fpsLimitEnabled.state,
+                onSwitch = { enabled ->
+                    AllSettings.fpsLimitEnabled.save(enabled)
+                    if (enabled) {
+                        val hz = display?.refreshRate?.roundToInt() ?: 60
+                        AllSettings.fpsLimit.save(hz)
+                        ZLBridge.fpsLimitSet(hz)
+                    } else {
+                        ZLBridge.fpsLimitSet(0)
+                    }
+                },
+                color = color,
+                contentColor = contentColor
+            )
+        }
+        if (AllSettings.fpsLimitEnabled.state) {
+            item {
+                MenuSliderLayout(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = stringResource(R.string.settings_renderer_fps_limit_title),
+                    value = AllSettings.fpsLimit.state,
+                    valueRange = AllSettings.fpsLimit.floatRange,
+                    onValueChange = { AllSettings.fpsLimit.updateState(it) },
+                    onValueChangeFinished = {
+                        AllSettings.fpsLimit.save(it)
+                        ZLBridge.fpsLimitSet(it)
+                    },
+                    suffix = " FPS",
+                    color = color,
+                    contentColor = contentColor,
+                )
+            }
+        }
+
+        //加载时隐藏控制布局
+        item {
+            MenuSwitchButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_menu_option_hide_controls_loading),
+                switch = AllSettings.hideControlsDuringLoading.state,
+                onSwitch = { AllSettings.hideControlsDuringLoading.save(it) },
+                color = color,
+                contentColor = contentColor
+            )
+        }
+
+        //管理摇杆
+        item {
+            MenuTextButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_styles_joystick),
+                onClick = {
+                    onManageJoystick()
+                    closeScreen()
+                },
                 color = color,
                 contentColor = contentColor,
             )

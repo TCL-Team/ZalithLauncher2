@@ -41,6 +41,7 @@ import java.io.File
  * 描述一个控制布局结构
  * @param info 控制布局基本信息
  * @param layers 控制层级列表
+ * @param special 可以变更启动器层的部分组件的扩展设定
  * @param editorVersion 使用编辑器版本
  */
 @Serializable
@@ -53,6 +54,8 @@ data class ControlLayout(
     val styles: List<ButtonStyle> = emptyList(),
     @SerialName("joystickStyles")
     val joystickStyles: List<JoystickStyle> = emptyList(),
+    @SerialName("special")
+    val special: Special = Special(),
     @SerialName("editorVersion")
     val editorVersion: Int
 ): Modifiable<ControlLayout> {
@@ -78,11 +81,28 @@ data class ControlLayout(
         }
     }
 
+    /** Special editor overrides applied to launcher-provided controls. */
+    @Serializable
+    data class Special(
+        val joystickStyle: JoystickStyle? = null
+    ): Modifiable<Special> {
+        override fun isModified(other: Special): Boolean {
+            val currentStyle = joystickStyle
+            val otherStyle = other.joystickStyle
+            return when {
+                currentStyle == null -> otherStyle != null
+                otherStyle == null -> true
+                else -> currentStyle.isModified(otherStyle)
+            }
+        }
+    }
+
     override fun isModified(other: ControlLayout): Boolean {
         return this.info.isModified(other.info) ||
                 this.layers.isModified(other.layers) ||
                 this.styles.isModified(other.styles) ||
                 this.joystickStyles.isModified(other.joystickStyles) ||
+                this.special.isModified(other.special) ||
                 this.editorVersion != other.editorVersion
     }
 }
@@ -127,7 +147,12 @@ fun loadLayoutFromString(jsonString: String): ControlLayout {
             }
         } else null
 
-        var layout = layoutJson.decodeFromString<ControlLayout>(jsonString)
+        val layoutJsonObject = if (version < 12 && jsonObject.containsKey("special")) {
+            JsonObject(jsonObject.toMutableMap().apply { remove("special") })
+        } else {
+            jsonObject
+        }
+        var layout = layoutJson.decodeFromJsonElement<ControlLayout>(layoutJsonObject)
         if (version < EDITOR_VERSION) layout = updateLayoutToNew(layout)
 
         if (legacyJoystickStyle != null) {

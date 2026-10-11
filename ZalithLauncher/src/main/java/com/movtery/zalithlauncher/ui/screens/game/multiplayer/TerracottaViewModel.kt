@@ -107,7 +107,22 @@ class TerracottaViewModel(
         if (!Terracotta.initialized) initialize()
         if (allJobs.isEmpty()) initJobs()
 
+        //提前申请VPN权限，避免等到实际开始联机（Host/Guest）后才弹出授权对话框
+        requestVpnPermissionEarly()
+
         operation = TerracottaOperation.ShowMenu
+    }
+
+    /**
+     * 在打开联机菜单时提前申请一次VPN权限。
+     * 如果已经授权，则什么都不做——真正的VPN服务启动时机仍然由原生层的 RequestVPN 事件决定。
+     */
+    private fun requestVpnPermissionEarly() {
+        val activity = gameHandler.activity
+        val intent = VpnService.prepare(activity)
+        if (intent != null) {
+            vpnLauncher?.launch(intent)
+        }
     }
 
     private val logMutex = Mutex()
@@ -263,25 +278,19 @@ class TerracottaViewModel(
                         }
                         is EventViewModel.Event.Terracotta.VPNUpdateState -> {
                             withContext(Dispatchers.Main) {
-                                if (TerracottaVPNService.isRunning()) {
-                                    //服务已在前台运行，仅投递状态文本即可；
-                                    //服务未运行时直接跳过，避免经由 startForegroundService 拉起一个无法及时进入前台的服务
-                                    activity.startService(
-                                        Intent(activity, TerracottaVPNService::class.java)
-                                            .setAction(TerracottaVPNService.ACTION_UPDATE_STATE)
-                                            .putExtra(TerracottaVPNService.EXTRA_STATE_TEXT, event.stringRes)
-                                    )
-                                }
+                                val vpnIntent = Intent(activity, TerracottaVPNService::class.java)
+                                    .setAction(TerracottaVPNService.ACTION_UPDATE_STATE)
+                                    .putExtra(TerracottaVPNService.EXTRA_STATE_TEXT, event.stringRes)
+                                activity.startForegroundService(vpnIntent)
                             }
                         }
                         is EventViewModel.Event.Terracotta.StopVPN -> {
                             withContext(Dispatchers.Main) {
                                 val activity = gameHandler.activity
                                 if (TerracottaVPNService.isRunning()) {
-                                    //必须用 stopService 下发停止指令，避免 FGS 启动时限崩溃
-                                    activity.stopService(
-                                        Intent(activity, TerracottaVPNService::class.java)
-                                    )
+                                    val vpnIntent = Intent(activity, TerracottaVPNService::class.java)
+                                        .setAction(TerracottaVPNService.ACTION_STOP)
+                                    activity.startForegroundService(vpnIntent)
                                 }
                             }
                         }

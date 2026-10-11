@@ -36,7 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.nonInteractiveScrollbar
+import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -164,6 +164,7 @@ fun FileSelectorScreen(
         currentPath = currentPath,
         onCreatePath = { newDir ->
             createDir(newDir.name)
+            operation = SelectorOperation.None
         }
     )
 
@@ -305,8 +306,8 @@ private fun FilesLayout(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .nonInteractiveScrollbar(
-                            state = scrollState.scrollIndicatorState!!,
+                        .scrollbar(
+                            state = scrollState.scrollIndicatorState,
                             orientation = Orientation.Vertical,
                         ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),

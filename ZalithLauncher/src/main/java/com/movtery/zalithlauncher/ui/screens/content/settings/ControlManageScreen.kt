@@ -55,7 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.nonInteractiveScrollbar
+import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,7 +116,6 @@ import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.SingleLineTextCheck
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
@@ -476,8 +475,8 @@ private fun ControlLayoutList(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .nonInteractiveScrollbar(
-                            state = scrollState.scrollIndicatorState!!,
+                        .scrollbar(
+                            state = scrollState.scrollIndicatorState,
                             orientation = Orientation.Vertical,
                         ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -916,15 +915,13 @@ private fun CreateNewLayoutDialog(
         onDismissRequest = onDismissRequest
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 6.dp)
-                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 12.dp)
                     .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),

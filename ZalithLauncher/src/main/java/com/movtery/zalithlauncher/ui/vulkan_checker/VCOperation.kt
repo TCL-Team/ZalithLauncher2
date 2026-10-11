@@ -18,7 +18,6 @@
 
 package com.movtery.zalithlauncher.ui.vulkan_checker
 
-import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.utils.device.VulkanCapabilities
 
 /**
@@ -30,7 +29,7 @@ sealed interface VCOperation {
     /**
      * Vulkan 检查提示对话框
      */
-    data class Tip(val version: Version): VCOperation
+    data object Tip: VCOperation
 
     /**
      * @param data 检查结果

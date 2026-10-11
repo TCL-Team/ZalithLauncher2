@@ -51,6 +51,9 @@ import java.util.Objects
 
 private const val TAG = "AuthServerApi"
 
+/** Ely.by authlib-injector metadata endpoint, offered as a preset for auth-server login. */
+const val ELY_BY_AUTH_SERVER_URL = "https://authserver.ely.by/api/authlib-injector"
+
 class AuthServerApi(private var baseUrl: String) {
     fun formatUrl(baseUrl: String): String {
         var url = baseUrl

@@ -31,8 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,14 +45,15 @@ fun HidableInputLayout(
     onEnter: () -> Unit,
     onClose: () -> Unit,
     keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current,
+    inputFocus: FocusRequester = remember { FocusRequester() },
 ) {
     var view by remember { mutableStateOf<TouchCharInput?>(null) }
-    val localView = LocalView.current
 
     AndroidView(
         modifier = Modifier
             .alpha(0f)
-            .size(1.dp),
+            .size(1.dp)
+            .focusRequester(inputFocus),
         factory = { context ->
             TouchCharInput(context).apply {
                 id = View.generateViewId()
@@ -93,16 +95,16 @@ fun HidableInputLayout(
     )
 
     LaunchedEffect(view) {
-        val input = view ?: return@LaunchedEffect
-        input.enableKeyboard()
+        if (view == null) return@LaunchedEffect
+        inputFocus.requestFocus()
+        keyboardController?.show()
+        view?.enableKeyboard()
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            view?.disableKeyboard()
             keyboardController?.hide()
             view = null
-            localView.requestFocus()
         }
     }
 

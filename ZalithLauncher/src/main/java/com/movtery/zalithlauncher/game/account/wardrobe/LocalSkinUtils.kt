@@ -91,9 +91,17 @@ suspend fun validateSkinFile(skinFile: File): Boolean {
 }
 
 /**
- * 是否为双层皮肤：64x64
+ * 检查披风图像尺寸，Minecraft 披风标准为 64×32 像素。
  */
-fun BitmapFactory.Options.isDualLayerSkin(): Boolean {
+suspend fun validateCapeFile(capeFile: File): Boolean = withContext(Dispatchers.IO) {
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(capeFile.absolutePath, options)
+    options.outWidth == 64 && options.outHeight == 32
+}
+
+/**
+ * 是否为双层皮肤：64x64
+ */fun BitmapFactory.Options.isDualLayerSkin(): Boolean {
     return outWidth == 64 && outHeight == 64
 }
 

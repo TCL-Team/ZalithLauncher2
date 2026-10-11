@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -47,11 +48,11 @@ import androidx.navigation3.ui.NavDisplay
 import com.google.gson.JsonSyntaxException
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
+import com.movtery.zalithlauncher.coroutine.InstallerRestoreRegistry
+import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.download.game.GameInstaller
 import com.movtery.zalithlauncher.game.download.game.optifine.CantFetchingOptiFineUrlException
-import com.movtery.zalithlauncher.game.download.game.optifine.OptiFineForge17IncompatibleException
 import com.movtery.zalithlauncher.game.download.jvm_server.JvmCrashException
-import com.movtery.zalithlauncher.game.download.jvm_server.isProcessStartRefused
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.notification.NotificationManager
@@ -64,7 +65,6 @@ import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.download.game.DownloadGameWithAddonScreen
-import com.movtery.zalithlauncher.ui.screens.content.download.game.SelectGameVersionHost
 import com.movtery.zalithlauncher.ui.screens.content.download.game.SelectGameVersionScreen
 import com.movtery.zalithlauncher.ui.screens.content.elements.TitleTaskFlowDialog
 import com.movtery.zalithlauncher.ui.screens.navigateTo
@@ -230,17 +230,16 @@ fun DownloadGameScreen(
             entryProvider = entryProvider {
                 entry<NormalNavKey.DownloadGame.SelectGameVersion> {
                     SelectGameVersionScreen(
-                        host = SelectGameVersionHost.Download(
-                            mainScreenKey = mainScreenKey,
-                            downloadScreenKey = downloadScreenKey,
-                            downloadGameScreenKey = downloadGameScreenKey
-                        ),
+                        mainScreenKey = mainScreenKey,
+                        downloadScreenKey = downloadScreenKey,
+                        downloadGameScreenKey = downloadGameScreenKey,
                         eventViewModel = eventViewModel,
-                    ) { versionString ->
-                        backStack.navigateTo(
-                            NormalNavKey.DownloadGame.Addons(versionString)
-                        )
-                    }
+                        onVersionSelect = { versionString ->
+                            backStack.navigateTo(
+                                NormalNavKey.DownloadGame.Addons(versionString)
+                            )
+                        }
+                    )
                 }
                 entry<NormalNavKey.DownloadGame.Addons> { key ->
                     val context = LocalContext.current
@@ -327,17 +326,37 @@ private fun GameInstallOperation(
         is GameInstallOperation.Install -> {
             if (installer != null) {
                 val installGame = installer.tasksFlow.collectAsStateWithLifecycle()
-                val installLog = installer.logOutput.collectAsStateWithLifecycle()
                 if (installGame.value.isNotEmpty()) {
                     //安装游戏流程对话框
+                    val dialogTitle = stringResource(R.string.download_game_install_title)
                     TitleTaskFlowDialog(
-                        title = stringResource(R.string.download_game_install_title),
+                        title = dialogTitle,
                         tasks = installGame.value,
                         onCancel = {
                             onCancel()
                             updateOperation(GameInstallOperation.None)
                         },
-                        logOutput = installLog.value
+                        onMinimize = {
+                            InstallerRestoreRegistry.collapseTaskMenu()
+                            val bgTask = installer.createBackgroundTask(
+                                onCancelRequest = { onCancel() }
+                            )
+                            InstallerRestoreRegistry.register(
+                                bgTask.id,
+                                InstallerRestoreRegistry.RestorableInstaller(
+                                    title = dialogTitle,
+                                    tasksFlow = installer.tasksFlow,
+                                    onCancel = {
+                                        onCancel()
+                                        updateOperation(GameInstallOperation.None)
+                                    }
+                                )
+                            )
+                            TaskSystem.submitTask(bgTask, onEnded = {
+                                InstallerRestoreRegistry.unregister(bgTask.id)
+                            })
+                            updateOperation(GameInstallOperation.None)
+                        }
                     )
                 }
             }
@@ -351,12 +370,10 @@ private fun GameInstallOperation(
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
                 is CantFetchingOptiFineUrlException -> stringResource(R.string.download_install_error_cant_fetch_optifine_download_url)
-                is OptiFineForge17IncompatibleException -> stringResource(R.string.download_install_error_optifine_forge17_incompatible, th.buildof)
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
-                else -> when {
-                    th.isProcessStartRefused() -> stringResource(R.string.download_install_error_process_start)
-                    else -> th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                else -> {
+                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
                 }
             }
             val dismiss = {

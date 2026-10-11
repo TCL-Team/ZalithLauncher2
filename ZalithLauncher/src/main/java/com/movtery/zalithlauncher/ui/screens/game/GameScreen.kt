@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -55,11 +56,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
@@ -77,12 +82,19 @@ import com.movtery.layer_controller.event.EventHandler
 import com.movtery.layer_controller.layout.ControlLayout
 import com.movtery.layer_controller.layout.EmptyControlLayout
 import com.movtery.layer_controller.layout.loadLayoutFromFile
+import com.movtery.layer_controller.observable.DefaultObservableJoystickStyle
+import com.movtery.layer_controller.observable.ObservableJoystickStyle
+import com.movtery.layer_controller.observable.ObservableSpecial
+import com.movtery.layer_controller.utils.widgetPosition
 import com.movtery.layer_controller.observable.ObservableControlLayout
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.bridge.CURSOR_DISABLED
 import com.movtery.zalithlauncher.bridge.ZLBridgeStates
 import com.movtery.zalithlauncher.bridge.ZLNativeInvoker
 import com.movtery.zalithlauncher.game.input.LWJGLCharSender
+import com.movtery.zalithlauncher.game.keycodes.SPRING
+import com.movtery.zalithlauncher.game.keycodes.SPRING_VALUE
+import com.movtery.zalithlauncher.game.keycodes.mapToControlEvent
 import com.movtery.zalithlauncher.game.keycodes.mapToKeycode
 import com.movtery.zalithlauncher.game.launch.handler.GameHandler
 import com.movtery.zalithlauncher.game.recorder.GameRecorder
@@ -92,6 +104,7 @@ import com.movtery.zalithlauncher.game.sdl.SdlTextSender
 import com.movtery.zalithlauncher.game.support.touch_controller.touchControllerInputModifier
 import com.movtery.zalithlauncher.game.support.touch_controller.touchControllerTouchModifier
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.isLauncherInDarkTheme
 import com.movtery.zalithlauncher.setting.enums.toAction
@@ -111,11 +124,18 @@ import com.movtery.zalithlauncher.ui.control.gyroscope.GyroscopeReader
 import com.movtery.zalithlauncher.ui.control.gyroscope.isGyroscopeAvailable
 import com.movtery.zalithlauncher.ui.control.hotbarPercentage
 import com.movtery.zalithlauncher.ui.control.input.TextInputMode
+import com.movtery.zalithlauncher.ui.control.joystick.JoystickDirectionListener
+import com.movtery.zalithlauncher.ui.control.joystick.StyleableJoystick
+import com.movtery.zalithlauncher.ui.control.joystick.loadJoystickStyle
+import com.movtery.zalithlauncher.ui.control.joystick.saveJoystickStyle
 import com.movtery.zalithlauncher.ui.control.mouse.SwitchableMouseLayout
 import com.movtery.zalithlauncher.ui.screens.game.elements.DraggableGameBall
 import com.movtery.zalithlauncher.ui.screens.game.elements.ForceCloseOperation
 import com.movtery.zalithlauncher.ui.screens.game.elements.GameMenuSubscreen
 import com.movtery.zalithlauncher.ui.screens.game.elements.GamepadModePromptDialog
+import com.movtery.zalithlauncher.ui.screens.game.elements.JoystickManageOperation
+import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsDialog
+import com.movtery.zalithlauncher.ui.screens.game.elements.PerformanceSettingsOperation
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogBox
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogState
 import com.movtery.zalithlauncher.ui.screens.game.elements.ReplacementControlOperation
@@ -127,9 +147,12 @@ import com.movtery.zalithlauncher.ui.screens.game.multiplayer.rememberTerracotta
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.ControlEditor
 import com.movtery.zalithlauncher.utils.currentGameDisplayLayout
 import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.EditorViewModel
+import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
+import com.movtery.zalithlauncher.viewmodel.JoystickMovementViewModel
 import com.movtery.zalithlauncher.viewmodel.sendToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +190,8 @@ private class GameViewModel(
     var sendKeycodeState by mutableStateOf<SendKeycodeState>(SendKeycodeState.None)
     /** 更换控制布局操作状态 */
     var replacementControlState by mutableStateOf<ReplacementControlState>(ReplacementControlState.None)
+    /** 性能设置弹窗操作状态 */
+    var performanceSettingsState by mutableStateOf<PerformanceSettingsOperation>(PerformanceSettingsOperation.None)
     /** 被控制布局层标记为仅滑动的指针列表 */
     var moveOnlyPointers = mutableSetOf<PointerId>()
     /** 鼠标触摸指针处理层占用指针列表 */
@@ -215,6 +240,24 @@ private class GameViewModel(
     fun stopFpsCapture() {
         fpsJob?.cancel()
         fpsJob = null
+    }
+
+    /** 启动器默认摇杆样式 */
+    var launcherJoystickStyle by mutableStateOf(DefaultObservableJoystickStyle)
+
+    /** 保存启动器默认摇杆样式 */
+    fun saveLauncherJoystickStyle(
+        onFailed: (Throwable) -> Unit,
+        onSuccess: suspend () -> Unit
+    ) {
+        viewModelScope.launch {
+            saveJoystickStyle(
+                path = PathManager.DIR_STYLES,
+                style = launcherJoystickStyle,
+                onFailed = onFailed,
+                onSuccess = onSuccess
+            )
+        }
     }
 
     /**
@@ -413,6 +456,7 @@ private class GameViewModel(
     init {
         viewModelScope.launch(Dispatchers.Main) {
             loadControlLayout()
+            launcherJoystickStyle = loadJoystickStyle(PathManager.DIR_STYLES)
         }
     }
 
@@ -586,6 +630,7 @@ fun GameScreen(
     getAccountName: () -> String?,
     eventViewModel: EventViewModel,
     gamepadViewModel: GamepadViewModel,
+    submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     val context = LocalContext.current
     val viewModel = rememberGameViewModel(version) { mode ->
@@ -634,6 +679,7 @@ fun GameScreen(
     val isGrabbing = remember(cursorMode) {
         cursorMode == CURSOR_DISABLED
     }
+    val joystickMovementViewModel: JoystickMovementViewModel = viewModel()
     val terracottaViewModel = rememberTerracottaViewModel(
         keyTag = gameHandler.toString() + "_Terracotta",
         gameHandler = gameHandler,
@@ -668,6 +714,13 @@ fun GameScreen(
         onChange = { viewModel.replacementControlState = it },
         currentLayout = viewModel.currentControlFile,
         replacementControl = { viewModel.replaceControlLayout(it) }
+    )
+
+    PerformanceSettingsDialog(
+        operation = viewModel.performanceSettingsState,
+        onDismissRequest = {
+            viewModel.performanceSettingsState = PerformanceSettingsOperation.None
+        }
     )
 
     TerracottaOperation(
@@ -714,8 +767,11 @@ fun GameScreen(
                 )
             }
 
+            //加载时可以隐藏控制布局层，避免挡住加载提示
+            val hideControls = showGameInfo && AllSettings.hideControlsDuringLoading.state
+
             //控制布局层
-            ControlBoxLayout(
+            if (!hideControls) ControlBoxLayout(
                 modifier = Modifier.fillMaxSize(),
                 observedLayout = viewModel.observableLayout,
                 eventHandler = viewModel.eventHandler,
@@ -724,6 +780,7 @@ fun GameScreen(
                 markPointerAsMoveOnly = { viewModel.moveOnlyPointers.add(it) },
                 onOccupiedPointer = { viewModel.occupiedPointers.add(it) },
                 onReleasePointer = { viewModel.occupiedPointers.remove(it) },
+                isUsingJoystick = isGrabbing && AllSettings.enableJoystickControl.state,
                 isCursorGrabbing = isGrabbing,
                 hideLayerWhen = viewModel.controlLayerHideState,
                 isDark = isLauncherInDarkTheme()
@@ -750,7 +807,7 @@ fun GameScreen(
 
             //物品栏触发层
             val gameDisplayLayout = currentGameDisplayLayout(screenSize)
-            MinecraftHotbar(
+            if (!hideControls) MinecraftHotbar(
                 screenSize = screenSize,
                 rule = AllSettings.hotbarRule.state,
                 widthPercentage = AllSettings.hotbarWidth.state.hotbarPercentage(),
@@ -763,6 +820,22 @@ fun GameScreen(
                 onOccupiedPointer = { viewModel.occupiedPointers.add(it) },
                 onReleasePointer = { viewModel.occupiedPointers.remove(it) }
             )
+
+            //独立摇杆控制层
+            viewModel.observableLayout?.let { layout ->
+                val special by layout.special.collectAsStateWithLifecycle()
+                if (!hideControls) JoystickControlLayout(
+                    screenSize = screenSize,
+                    isGrabbing = isGrabbing,
+                    special = special,
+                    defaultStyle = viewModel.launcherJoystickStyle,
+                    hideLayerWhen = viewModel.controlLayerHideState,
+                    viewModel = joystickMovementViewModel,
+                    onKeyEvent = { event, pressed ->
+                        viewModel.onKeyEvent(event, pressed)
+                    }
+                )
+            }
         }
 
         //陀螺仪控制
@@ -790,7 +863,7 @@ fun GameScreen(
                 .padding(all = 16.dp),
             versionName = version.getVersionName(),
             versionInfo = version.getVersionInfo()?.getInfoString(),
-            visible = showGameInfo,
+            visible = showGameInfo && !AllSettings.disableLoadingPopup.state,
             onClose = onInfoBoxClose
         )
 
@@ -810,6 +883,12 @@ fun GameScreen(
             closeScreen = { viewModel.gameMenuState = MenuState.HIDE },
             onForceClose = { viewModel.forceCloseState = ForceCloseOperation.Show },
             onSwitchLog = { onLogStateChange(logState.next()) },
+            onOpenPerformanceFps = {
+                viewModel.performanceSettingsState = PerformanceSettingsOperation.Fps
+            },
+            onOpenPerformanceRam = {
+                viewModel.performanceSettingsState = PerformanceSettingsOperation.Ram
+            },
             enableTerracotta = AllSettings.enableTerracotta.state,
             onOpenTerracottaMenu = { terracottaViewModel.openMenu() },
             onRefreshWindowSize = { eventViewModel.sendEvent(EventViewModel.Event.Game.RefreshSize) },
@@ -821,6 +900,9 @@ fun GameScreen(
             onStopRecording = stopRecording,
             onSendKeycode = { viewModel.sendKeycodeState = SendKeycodeState.ShowDialog },
             onReplacementControl = { viewModel.replacementControlState = ReplacementControlState.Show },
+            onManageJoystick = {
+                joystickMovementViewModel.operation = JoystickManageOperation.Manage
+            },
             onEditLayout = {
                 viewModel.startControlEditor(
                     editorVM = editorViewModel
@@ -909,6 +991,27 @@ fun GameScreen(
             }
         }
     }
+
+    JoystickManageOperation(
+        operation = joystickMovementViewModel.operation,
+        onChanged = { joystickMovementViewModel.operation = it },
+        launcherJoystick = viewModel.launcherJoystickStyle,
+        onSaveStyle = {
+            viewModel.saveLauncherJoystickStyle(
+                onFailed = { throwable ->
+                    submitError(
+                        ErrorViewModel.ThrowableMessage(
+                            title = androidText(R.string.game_styles_save_failed),
+                            message = androidText(throwable.getMessageOrToString())
+                        )
+                    )
+                },
+                onSuccess = {
+                    eventViewModel.sendToast(androidText(R.string.generic_saved))
+                }
+            )
+        }
+    )
 
     LaunchedEffect(Unit) {
         eventViewModel.events
@@ -1136,4 +1239,88 @@ private fun MouseControlLayout(
 private fun Offset.sendPosition(screenSize: IntSize) {
     val gamePosition = currentGameDisplayLayout(screenSize).mapToGame(this)
     CallbackBridge.sendCursorPos(gamePosition.x, gamePosition.y)
+}
+
+/** On-screen joystick controller integrated with control-layout visibility rules. */
+@Composable
+private fun JoystickControlLayout(
+    isGrabbing: Boolean,
+    screenSize: IntSize,
+    special: ObservableSpecial,
+    defaultStyle: ObservableJoystickStyle,
+    hideLayerWhen: HideLayerWhen,
+    viewModel: JoystickMovementViewModel,
+    onKeyEvent: (ClickEvent, pressed: Boolean) -> Unit
+) {
+    val joystickStyle by special.joystickStyle.collectAsStateWithLifecycle()
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+
+    val hideState = when (hideLayerWhen) {
+        HideLayerWhen.WhenMouse -> AllSettings.joystickHideWhenMouse.state
+        HideLayerWhen.WhenGamepad -> AllSettings.joystickHideWhenGamepad.state
+        HideLayerWhen.None -> false
+    }
+
+    if (
+        ((isGrabbing && !hideState) || viewModel.operation == JoystickManageOperation.Manage) &&
+        AllSettings.enableJoystickControl.state
+    ) {
+        val size = AllSettings.joystickControlSize.state.dp
+        val position = remember(
+            screenSize,
+            size,
+            AllSettings.joystickControlX.state,
+            AllSettings.joystickControlY.state,
+            layoutDirection
+        ) {
+            val widgetSize = with(density) {
+                IntSize(size.roundToPx(), size.roundToPx())
+            }
+            val originalPosition = widgetPosition(
+                xPercentage = AllSettings.joystickControlX.state / 10000f,
+                yPercentage = AllSettings.joystickControlY.state / 10000f,
+                widgetSize = widgetSize,
+                screenSize = screenSize
+            )
+            if (layoutDirection == LayoutDirection.Rtl) {
+                Offset(
+                    x = screenSize.width - originalPosition.x - widgetSize.width,
+                    y = originalPosition.y
+                )
+            } else {
+                originalPosition
+            }
+        }
+
+        StyleableJoystick(
+            modifier = Modifier.offset {
+                IntOffset(position.x.toInt(), position.y.toInt())
+            },
+            style = if (AllSettings.joystickUseStyleByLayout.state) {
+                joystickStyle ?: defaultStyle
+            } else {
+                defaultStyle
+            },
+            size = size,
+            onDirectionChanged = viewModel::onListen,
+            deadZoneRatio = AllSettings.joystickDeadZoneRatio.state / 100f,
+            lockThreshold = AllSettings.joystickLockThreshold.state / 100f,
+            canLock = AllSettings.joystickControlCanLock.state,
+            onCanLock = { lock ->
+                if (AllSettings.joystickControlLockSpring.state) {
+                    mapToControlEvent(SPRING, SPRING_VALUE)?.let { key ->
+                        val event = ClickEvent(type = ClickEvent.Type.Key, key = key)
+                        onKeyEvent(event, lock)
+                    }
+                }
+            }
+        )
+    }
+
+    JoystickDirectionListener(
+        viewModel = viewModel,
+        isGrabbing = isGrabbing,
+        onKeyEvent = onKeyEvent
+    )
 }

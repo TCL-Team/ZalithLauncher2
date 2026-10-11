@@ -64,28 +64,31 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.setting.AllSettings
+import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
+import kotlinx.coroutines.delay
 
 private val CollapsedWidth = 56.dp
-val SideBarLayoutWidth = 110.dp
-private val ExpandedWidth = SideBarLayoutWidth
+private val ExpandedWidth = 110.dp
 
 @Composable
 fun SideBar(
     modifier: Modifier = Modifier,
     isVisible: Boolean,
-    onGameSettingsClick: () -> Unit,
+    onFpsClick: () -> Unit,
     onVersionsClick: () -> Unit,
-    onAccountsClick: () -> Unit,
-    onAboutClick: () -> Unit
+    onInfoClick: () -> Unit,
+    onTeamClick: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -152,15 +155,15 @@ fun SideBar(
 
                         Spacer(modifier = Modifier.height(2.dp))
 
-                        StaggeredItem(delay = 0, visible = isVisible) {
+                        StaggeredItem(delay = 0) {
                             SideBarShortcut(
                                 icon = painterResource(R.drawable.ic_video_settings),
-                                label = stringResource(R.string.settings_tab_game),
-                                onClick = onGameSettingsClick
+                                label = stringResource(R.string.game_menu_option_fps_settings),
+                                onClick = onFpsClick
                             )
                         }
 
-                        StaggeredItem(delay = 120, visible = isVisible) {
+                        StaggeredItem(delay = 120) {
                             SideBarShortcut(
                                 icon = painterResource(R.drawable.ic_assignment_filled),
                                 label = stringResource(R.string.page_title_version_manage),
@@ -168,19 +171,19 @@ fun SideBar(
                             )
                         }
 
-                        StaggeredItem(delay = 180, visible = isVisible) {
-                            SideBarShortcut(
-                                icon = painterResource(R.drawable.ic_person_outlined),
-                                label = stringResource(R.string.page_title_account_list),
-                                onClick = onAccountsClick
-                            )
-                        }
-
-                        StaggeredItem(delay = 240, visible = isVisible) {
+                        StaggeredItem(delay = 180) {
                             SideBarShortcut(
                                 icon = painterResource(R.drawable.ic_info_outlined),
                                 label = stringResource(R.string.about_launcher_title),
-                                onClick = onAboutClick
+                                onClick = onInfoClick
+                            )
+                        }
+
+                        StaggeredItem(delay = 240) {
+                            SideBarShortcut(
+                                icon = painterResource(R.drawable.ic_group_filled),
+                                label = "Our Team",
+                                onClick = onTeamClick
                             )
                         }
                     }
@@ -201,13 +204,14 @@ private fun StaggeredItem(
     visible: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    var show by remember { mutableStateOf(false) }
+    var show by remember { mutableStateOf(!visible) }
 
     LaunchedEffect(visible) {
-        show = false
         if (visible) {
             kotlinx.coroutines.delay(delay.toLong())
             show = true
+        } else {
+            show = false
         }
     }
 
@@ -257,9 +261,7 @@ private fun SideBarToggle(
         Icon(
             painter = if (expanded) painterResource(R.drawable.ic_arrow_right_rounded)
                 else painterResource(R.drawable.ic_arrow_left_rounded),
-            contentDescription = stringResource(
-                if (expanded) R.string.generic_collapse else R.string.generic_expand
-            ),
+            contentDescription = if (expanded) "Collapse" else "Expand",
             modifier = Modifier.size(32.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )

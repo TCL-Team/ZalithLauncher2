@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -49,7 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.nonInteractiveScrollbar
+import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +70,6 @@ import com.movtery.zalithlauncher.terracotta.profile.TerracottaProfile
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
-import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
@@ -130,17 +128,14 @@ fun MultiplayerDialog(
         )
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth(0.7f)
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+            modifier = Modifier.fillMaxWidth(0.7f),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(all = 6.dp)
-                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 12.dp)
                     .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),
@@ -539,8 +534,8 @@ private fun ProfileListPanel(
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
-                .nonInteractiveScrollbar(
-                    state = scrollState.scrollIndicatorState!!,
+                .scrollbar(
+                    state = scrollState.scrollIndicatorState,
                     orientation = Orientation.Vertical,
                 ),
             verticalArrangement = Arrangement.spacedBy(8.dp),

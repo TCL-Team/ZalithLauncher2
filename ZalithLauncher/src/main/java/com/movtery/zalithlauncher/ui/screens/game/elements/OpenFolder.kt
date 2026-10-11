@@ -50,7 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.nonInteractiveScrollbar
+import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -236,8 +236,8 @@ fun OpenFolderLayer(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
-                                    .nonInteractiveScrollbar(
-                                        state = scrollState.scrollIndicatorState!!,
+                                    .scrollbar(
+                                        state = scrollState.scrollIndicatorState,
                                         orientation = Orientation.Vertical,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),

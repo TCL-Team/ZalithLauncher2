@@ -33,6 +33,7 @@ import com.movtery.zalithlauncher.game.addons.modloader.AddonVersion
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.addons.modloader.ResponseTooShortException
 import com.movtery.zalithlauncher.game.addons.modloader.cleanroom.CleanroomVersion
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.babric.BabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.legacyfabric.LegacyFabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersion
@@ -64,6 +65,7 @@ class AddonList {
     var legacyFabricAPIList by mutableStateOf<List<ModVersion>?>(null)
     var quiltList by mutableStateOf<List<QuiltVersion>?>(null)
     var quiltAPIList by mutableStateOf<List<ModVersion>?>(null)
+    var babricList by mutableStateOf<List<BabricVersion>?>(null)
     var cleanroomList by mutableStateOf<List<CleanroomVersion>?>(null)
 }
 
@@ -78,6 +80,7 @@ class CurrentAddon {
     var legacyFabricAPIVersion = mutableStateOf<ModVersion?>(null)
     var quiltVersion = mutableStateOf<QuiltVersion?>(null)
     var quiltAPIVersion = mutableStateOf<ModVersion?>(null)
+    var babricVersion = mutableStateOf<BabricVersion?>(null)
     var cleanroomVersion = mutableStateOf<CleanroomVersion?>(null)
 
     //加载状态
@@ -90,6 +93,7 @@ class CurrentAddon {
     var legacyFabricAPIState by mutableStateOf<AddonState>(AddonState.None)
     var quiltState by mutableStateOf<AddonState>(AddonState.None)
     var quiltAPIState by mutableStateOf<AddonState>(AddonState.None)
+    var babricState by mutableStateOf<AddonState>(AddonState.None)
     var cleanroomState by mutableStateOf<AddonState>(AddonState.None)
 
     //不兼容列表 利用Set集合不可重复
@@ -102,6 +106,7 @@ class CurrentAddon {
     var incompatibleWithLegacyFabricAPI = mutableStateOf<Set<ModLoader>>(emptySet())
     var incompatibleWithQuilt = mutableStateOf<Set<ModLoader>>(emptySet())
     var incompatibleWithQuiltAPI = mutableStateOf<Set<ModLoader>>(emptySet())
+    var incompatibleWithBabric = mutableStateOf<Set<ModLoader>>(emptySet())
     var incompatibleWithCleanroom = mutableStateOf<Set<ModLoader>>(emptySet())
 
 
@@ -123,7 +128,8 @@ class CurrentAddon {
         ModLoader.FABRIC,
         ModLoader.QUILT,
         ModLoader.CLEANROOM,
-        ModLoader.LEGACY_FABRIC
+        ModLoader.LEGACY_FABRIC,
+        ModLoader.BABRIC
     )
 
     private data class LoaderState<T : Any>(
@@ -142,6 +148,7 @@ class CurrentAddon {
         LoaderState(ModLoader.LEGACY_FABRIC_API, legacyFabricAPIVersion, incompatibleWithLegacyFabricAPI),
         LoaderState(ModLoader.QUILT, quiltVersion, incompatibleWithQuilt),
         LoaderState(ModLoader.QUILT_API, quiltAPIVersion, incompatibleWithQuiltAPI),
+        LoaderState(ModLoader.BABRIC, babricVersion, incompatibleWithBabric),
         LoaderState(ModLoader.CLEANROOM, cleanroomVersion, incompatibleWithCleanroom)
     )
 
@@ -167,7 +174,6 @@ class CurrentAddon {
                         areMutuallyExclusive(
                             currentVersions[thisLoader],
                             thisLoader,
-                            currentVersions[state.loader],
                             state.loader,
                             addonList
                         )
@@ -199,7 +205,6 @@ class CurrentAddon {
                         areMutuallyExclusive(
                             finalVersions[targetState.loader],
                             targetState.loader,
-                            otherVersion,
                             otherLoader,
                             addonList
                         )
@@ -214,44 +219,24 @@ class CurrentAddon {
     }
 
     /**
-     * 检查候选加载器版本是否与当前已选择的其他加载器全部兼容
-     * 用于预选等不经过用户点击的填入场景，避免与用户已做出的选择冲突
-     */
-    fun isCompatibleWithSelection(
-        candidateVersion: AddonVersion?,
-        loader: ModLoader,
-        addonList: AddonList
-    ): Boolean {
-        return allLoaders.all { state ->
-            if (state.loader == loader || state.versionState.value == null) return@all true
-
-            !areMutuallyExclusive(candidateVersion, loader, state.versionState.value, state.loader, addonList)
-        }
-    }
-
-    /**
      * 判断两个加载器之间是否不兼容
      */
     private fun areMutuallyExclusive(
         version: AddonVersion?,
         thisLoader: ModLoader,
-        otherVersion: AddonVersion?,
         otherLoader: ModLoader,
         addonList: AddonList
     ): Boolean {
         if (thisLoader == otherLoader) return false
 
-        //OptiFine 与 Forge 按双方已选版本成对校验，与列表条目的过滤规则保持一致
         if (thisLoader == ModLoader.OPTIFINE && otherLoader == ModLoader.FORGE) {
             val optifine = version as? OptiFineVersion ?: return false
-            val forge = otherVersion as? ForgeVersion ?: return false
-            return !isOptiFineCompatibleWithForge(optifine, forge)
+            return !isOptiFineCompatibleWithForgeList(optifine, addonList.forgeList)
         }
 
         if (thisLoader == ModLoader.FORGE && otherLoader == ModLoader.OPTIFINE) {
             val forge = version as? ForgeVersion ?: return false
-            val optifine = otherVersion as? OptiFineVersion ?: return false
-            return !isOptiFineCompatibleWithForge(optifine, forge)
+            return !isForgeCompatibleWithOptiFineList(forge, addonList.optifineList)
         }
 
         return when {
@@ -278,6 +263,7 @@ data class LoaderVerSupports(
     val isQuiltSupports: Boolean,
     val isCleanroomSupports: Boolean,
     val isLegacyFabricSupports: Boolean,
+    val isBabricSupports: Boolean,
 )
 
 @Composable
@@ -288,7 +274,8 @@ fun rememberLoaderVerSupports(mcVer: String) = remember(mcVer) {
         isFabricSupports = fabricLike,
         isQuiltSupports = fabricLike,
         isCleanroomSupports = mcVer == "1.12.2",
-        isLegacyFabricSupports = !fabricLike
+        isLegacyFabricSupports = !fabricLike,
+        isBabricSupports = mcVer == "b1.7.3"
     )
 }
 
@@ -727,16 +714,76 @@ fun CleanroomList(
     )
 }
 
-/**
- * 判断指定 OptiFine 是否与指定 Forge 兼容
- */
-fun isOptiFineCompatibleWithForge(
+@Composable
+fun BabricList(
+    modifier: Modifier = Modifier,
+    currentAddon: CurrentAddon,
+    addonList: AddonList,
+    error: String? = null,
+    onValueChanged: (BabricVersion?) -> Unit = {},
+    onReload: () -> Unit = {}
+) {
+    var version by currentAddon.babricVersion
+    val incompatibleSet by currentAddon.incompatibleWithBabric
+
+    AddonListLayout(
+        modifier = modifier,
+        state = currentAddon.babricState,
+        title = ModLoader.BABRIC.displayName,
+        error = error,
+        iconPainter = painterResource(R.drawable.img_loader_fabric),
+        items = addonList.babricList,
+        current = version,
+        incompatibleSet = incompatibleSet,
+        checkIncompatible = {
+            currentAddon.updateIncompatibleState(ModLoader.BABRIC, addonList)
+        },
+        getItemText = { it.version },
+        summary = { FabricLikeSummary(it) },
+        onValueChange = { version0 ->
+            version = version0
+            onValueChanged(version0)
+        },
+        onReload = onReload
+    )
+}
+
+private fun isOptiFineCompatibleWithForge(
     optifine: OptiFineVersion,
     forge: ForgeVersion
 ): Boolean = optifine.forgeVersion?.let {
     //空字符串表示兼容所有
     it.isEmpty() || forge.forgeBuildVersion.compareOptiFineRequired(it)
 } ?: false //没有声明需要的 Forge 版本，视为不兼容
+
+private fun isOptiFineCompatibleWithForgeList(
+    optifine: OptiFineVersion,
+    forgeList: List<ForgeVersion>?
+): Boolean {
+    //没有声明需要的 Forge 版本，视为不兼容
+    val requiredVersion = optifine.forgeVersion ?: return false
+    return when {
+        requiredVersion.isEmpty() -> true //为空则表示不要求，兼容
+        else -> forgeList?.any {
+            it.forgeBuildVersion.compareOptiFineRequired(requiredVersion)
+        } == true
+    }
+}
+
+private fun isForgeCompatibleWithOptiFineList(
+    forge: ForgeVersion,
+    optifineList: List<OptiFineVersion>?
+): Boolean {
+    val forgeVersion = forge.forgeBuildVersion
+
+    optifineList?.forEach { optifine ->
+        val ofVersion = optifine.forgeVersion ?: return@forEach //null: 不兼容，跳过
+        if (ofVersion.isEmpty()) return true    //空字符串表示兼容所有
+        if (forgeVersion.compareOptiFineRequired(ofVersion)) return true
+    }
+
+    return false //没有匹配项
+}
 
 @Composable
 private fun checkForgeCompatibilityError(

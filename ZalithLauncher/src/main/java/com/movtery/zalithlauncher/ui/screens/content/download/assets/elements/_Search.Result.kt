@@ -79,7 +79,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.download.assets.favorites.FavoriteProjectsRepository
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformDisplayLabel
@@ -87,11 +86,9 @@ import com.movtery.zalithlauncher.game.download.assets.platform.PlatformFilterCo
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchData
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
-import com.movtery.zalithlauncher.game.version.mod.InstalledMod
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
-import com.movtery.zalithlauncher.ui.components.MarqueeText
+import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.SmallOutlinedEditField
 import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
@@ -110,7 +107,6 @@ sealed interface SearchAssetsState {
 /**
  * 资源搜索结果展示列表
  * @param swapToDownload 跳转到下载详情页
- * @param installedInfo 查询项目本地是否已安装，键为平台与平台项目ID
  * @param onNavigatePage 导航到指定页面
  */
 @Composable
@@ -125,8 +121,7 @@ fun ResultListLayout(
     onPreviousPage: (pageNumber: Int) -> Unit,
     onNextPage: (pageNumber: Int, isLastPage: Boolean) -> Unit,
     onNavigatePage: (Int) -> Unit,
-    swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> },
-    installedInfo: ((Platform, projectId: String) -> InstalledMod?)? = null
+    swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> }
 ) {
     when (searchState) {
         is SearchAssetsState.Searching -> {
@@ -166,8 +161,7 @@ fun ResultListLayout(
                     contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 60.dp, bottom = 6.dp),
                     classes = classes,
                     data = page.data,
-                    swapToDownload = swapToDownload,
-                    installedInfo = installedInfo
+                    swapToDownload = swapToDownload
                 )
 
                 val targetScale = 1f - (1f - controllerMinScale) * fraction
@@ -207,10 +201,10 @@ fun ResultListLayout(
                     modifier = Modifier.align(Alignment.Center),
                     text = {
                         AndroidStringText(
-                            text = androidText(
-                                R.string.download_assets_failed_to_get_result,
-                                searchState.message
-                            )
+                            text = buildAppendedText {
+                                append(R.string.download_assets_failed_to_get_result)
+                                append(searchState.message)
+                            }
                         )
                     },
                     onClick = onReload
@@ -259,7 +253,6 @@ private fun PageController(
                         .width(72.dp),
                     value = numberText,
                     onValueChange = onValueChange@ { value ->
-                        if (page.totalPage <= 0) return@onValueChange
                         val number0 = if (value.isEmptyOrBlank()) {
                             1 //为了编辑体验，留空时视为1
                         } else {
@@ -313,7 +306,7 @@ private fun PageController(
         ) {
             Row(
                 modifier = Modifier
-                    .clickable(enabled = !editPageNumber && page.totalPage > 0) {
+                    .clickable(enabled = !editPageNumber) {
                         editPageNumber = true
                     },
                 verticalAlignment = Alignment.CenterVertically
@@ -365,8 +358,7 @@ private fun ResultList(
     contentPadding: PaddingValues = PaddingValues(),
     classes: PlatformClasses,
     data: List<Pair<PlatformSearchData, ModTranslations.McMod?>>,
-    swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> },
-    installedInfo: ((Platform, projectId: String) -> InstalledMod?)? = null
+    swapToDownload: (Platform, projectId: String, iconUrl: String?) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     LazyColumn(
@@ -381,10 +373,9 @@ private fun ResultList(
             val iconUrl = remember(item) { item.platformIconUrl() }
             val author = remember(item) { item.platformAuthor() }
             val downloads = remember(item) { item.platformDownloadCount() }
+            val follows = remember(item) { item.platformFollows() }
             val modloaders = remember(item) { item.platformModLoaders() }
             val categories = remember(item, classes) { item.platformCategories(classes) }
-            val isInstalled = installedInfo?.invoke(platform, item.platformId()) != null
-            val isFavorite = FavoriteProjectsRepository.isFavorite(platform, item.platformId())
 
             ResultProjectLayout(
                 modifier = Modifier
@@ -396,13 +387,9 @@ private fun ResultList(
                 iconUrl = iconUrl,
                 author = author,
                 downloads = downloads,
+                follows = follows,
                 modloaders = modloaders,
                 categories = categories?.sortedWith { o1, o2 -> o1.index() - o2.index() },
-                isInstalled = isInstalled,
-                isFavorite = isFavorite,
-                onFavoriteClick = {
-                    FavoriteProjectsRepository.toggle(item, classes)
-                },
                 onClick = {
                     swapToDownload(platform, item.platformId(), iconUrl)
                 }
@@ -421,11 +408,9 @@ fun ResultProjectLayout(
     iconUrl: String? = null,
     author: String? = null,
     downloads: Long = 0L,
+    follows: Long? = null,
     modloaders: List<PlatformDisplayLabel>? = null,
     categories: List<PlatformFilterCode>? = null,
-    isInstalled: Boolean = false,
-    isFavorite: Boolean = false,
-    onFavoriteClick: (() -> Unit)? = null,
     shape: Shape = MaterialTheme.shapes.large,
     influencedByBackground: Boolean = true,
     color: Color = cardColor(influencedByBackground),
@@ -485,21 +470,43 @@ fun ResultProjectLayout(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    //下载量
-                    Row(
+                    //下载量、收藏量
+                    Column(
                         modifier = Modifier.alpha(0.7f),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            modifier = Modifier.size(16.dp),
-                            painter = painterResource(R.drawable.ic_download_2_outlined),
-                            contentDescription = null
-                        )
-                        Text(
-                            text = formatNumberByLocale(context, downloads),
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(16.dp),
+                                painter = painterResource(R.drawable.ic_download_2_outlined),
+                                contentDescription = null
+                            )
+                            Text(
+                                text = formatNumberByLocale(context, downloads),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+
+                        follows?.let {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    modifier = Modifier.size(14.dp),
+                                    painter = painterResource(R.drawable.ic_favorite_outlined),
+                                    contentDescription = null
+                                )
+                                Text(
+                                    text = formatNumberByLocale(context, it),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -538,17 +545,6 @@ fun ResultProjectLayout(
                     if (classes != null) {
                         ClassesIdentifier(classes = classes)
                     }
-
-                    if (isInstalled) {
-                        InstalledModBadge()
-                    }
-
-                    onFavoriteClick?.let { onFavorite ->
-                        FavoriteToggleLabel(
-                            isFavorite = isFavorite,
-                            onClick = onFavorite
-                        )
-                    }
                 }
             }
         }
@@ -560,9 +556,7 @@ fun ProjectTitleHead(
     modifier: Modifier = Modifier,
     platform: Platform,
     title: String,
-    author: String?,
-    classes: PlatformClasses? = null,
-    reserveAuthor: Boolean = false
+    author: String?
 ) {
     //标题栏、作者栏、平台标签
     Row(
@@ -591,29 +585,15 @@ fun ProjectTitleHead(
                         .padding(vertical = 4.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
-                MarqueeText(
+                Text(
                     modifier = Modifier
                         .weight(0.4f, fill = false)
                         .alpha(0.7f),
                     text = stringResource(R.string.download_assets_result_authors, it),
                     style = MaterialTheme.typography.labelSmall,
-                )
-            }
-            if (author == null && reserveAuthor) {
-                //作者信息缺失时保留占位
-                Text(
-                    modifier = Modifier
-                        .weight(0.4f, fill = false)
-                        .alpha(0.7f),
-                    text = "",
-                    style = MaterialTheme.typography.labelSmall,
                     maxLines = 1
                 )
             }
-        }
-        //资源的类别
-        classes?.let {
-            ClassesIdentifier(classes = it)
         }
         //平台标签
         PlatformIdentifier(platform = platform)

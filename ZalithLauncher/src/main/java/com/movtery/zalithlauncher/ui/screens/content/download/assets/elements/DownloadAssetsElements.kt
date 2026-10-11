@@ -78,7 +78,6 @@ import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
-import com.movtery.zalithlauncher.game.version.mod.InstalledMod
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.components.IconTextButton
@@ -107,6 +106,8 @@ sealed interface DownloadAssetsVersionLoading {
     data object StartLoadPage: DownloadAssetsVersionLoading
     /** 加载分页数据 */
     data class LoadingPage(val chunk: Int, val page: Int): DownloadAssetsVersionLoading
+    /** 正在加载并缓存依赖项目 */
+    data object LoadingDepProject: DownloadAssetsVersionLoading
 }
 
 /**
@@ -202,12 +203,12 @@ private fun isVersionAdapt(
         if (currentVersion.getVersionInfo()?.minecraftVersion != gameVersion) {
             false //游戏版本不匹配
         } else {
-            //判断模组加载器匹配情况，多加载器组合时任一加载器匹配即可
-            val loaderInfos = currentVersion.getVersionInfo()?.loaderInfos.orEmpty()
+            //判断模组加载器匹配情况
+            val loaderInfo = currentVersion.getVersionInfo()?.loaderInfo
             when {
                 loader == null -> true //资源没有模组加载器信息，直接判定适配
-                loaderInfos.isEmpty() -> false //资源有模组加载器，但当前版本没有模组加载器信息，不适配
-                else -> loaderInfos.any { it.loader.displayName.equals(loader.getDisplayName(), true) }
+                loaderInfo == null -> false //资源有模组加载器，但当前版本没有模组加载器信息，不适配
+                else -> loaderInfo.loader.displayName.equals(loader.getDisplayName(), true)
             }
         }
     }
@@ -215,24 +216,20 @@ private fun isVersionAdapt(
 
 /**
  * 资源版本分组可折叠列表
- * @param defaultExpanded 是否默认展开，默认为是否适配当前版本
- * @param installedChecker 查询版本本地是否已安装，null 则不进行已安装标注
  */
 @Composable
 fun AssetsVersionItemLayout(
     modifier: Modifier = Modifier,
     infoMap: VersionInfoMap,
-    defaultExpanded: Boolean = infoMap.isAdapt,
     maxListHeight: Dp = rememberMaxHeight(),
     shape: Shape = MaterialTheme.shapes.large,
     influencedByBackground: Boolean = true,
     color: Color = cardColor(influencedByBackground),
     contentColor: Color = onCardColor(),
     blur: Int = AllSettings.backgroundBlur.state,
-    installedChecker: ((PlatformVersion) -> InstalledMod?)? = null,
     onItemClicked: (PlatformVersion) -> Unit = {}
 ) {
-    var expanded by remember(infoMap) { mutableStateOf(defaultExpanded) }
+    var expanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier,
@@ -249,7 +246,6 @@ fun AssetsVersionItemLayout(
                 modifier = Modifier.fillMaxWidth(),
                 infoMap = infoMap,
                 isAdapt = infoMap.isAdapt,
-                hasInstalled = installedChecker != null && infoMap.versions.any { installedChecker(it) != null },
                 expanded = expanded,
                 onClick = { expanded = !expanded }
             )
@@ -275,7 +271,6 @@ fun AssetsVersionItemLayout(
                                         .fillMaxWidth()
                                         .padding(all = 4.dp),
                                     version = version,
-                                    installed = installedChecker?.invoke(version),
                                     onClick = {
                                         onItemClicked(version)
                                     }
@@ -294,7 +289,6 @@ private fun AssetsVersionHeadLayout(
     modifier: Modifier = Modifier,
     infoMap: VersionInfoMap,
     isAdapt: Boolean,
-    hasInstalled: Boolean,
     expanded: Boolean,
     onClick: () -> Unit = {}
 ) {
@@ -331,12 +325,6 @@ private fun AssetsVersionHeadLayout(
                 contentDescription = null
             )
         }
-        if (hasInstalled) {
-            InstalledModBadge(
-                modifier = Modifier.padding(start = 4.dp),
-                size = 16.dp
-            )
-        }
         if (!infoMap.versions.isEmpty()) {
             Row(
                 modifier = Modifier.padding(end = 4.dp),
@@ -363,20 +351,11 @@ private fun AssetsVersionHeadLayout(
 private fun AssetsVersionListItem(
     modifier: Modifier = Modifier,
     version: PlatformVersion,
-    installed: InstalledMod? = null,
     onClick: () -> Unit = {}
 ) {
     Row(
         modifier = modifier
             .clip(shape = MaterialTheme.shapes.medium)
-            .background(
-                color = if (installed != null) {
-                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
-                } else {
-                    Color.Transparent
-                },
-                shape = MaterialTheme.shapes.medium
-            )
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {

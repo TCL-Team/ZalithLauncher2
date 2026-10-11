@@ -19,6 +19,7 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,14 +51,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.nonInteractiveScrollbar
+import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +86,7 @@ import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.DarkMode
+import com.movtery.zalithlauncher.setting.enums.HomePageType
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.applyLanguage
 import com.movtery.zalithlauncher.setting.unit.floatRange
@@ -90,12 +95,13 @@ import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.MarqueeText
+import com.movtery.zalithlauncher.ui.components.OwnOutlinedTextField
 import com.movtery.zalithlauncher.ui.components.RadioCard
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.TitleAndSummary
+import com.movtery.zalithlauncher.ui.components.WarningCard
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.components.toColorOrNull
 import com.movtery.zalithlauncher.ui.components.toHex
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
@@ -115,13 +121,19 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.TransitionAnimationType
 import com.movtery.zalithlauncher.utils.file.shareFile
+import com.movtery.zalithlauncher.utils.checkStoragePermissions
 import com.movtery.zalithlauncher.utils.isChinaMainland
 import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.settings.SettingsTransferUtils
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
+import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
+import com.movtery.zalithlauncher.viewmodel.LocalHomePageViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private const val TAG = "LauncherSettingsScreen"
@@ -138,9 +150,12 @@ fun LauncherSettingsScreen(
     key: NestedNavKey.Settings,
     settingsScreenKey: TitledNavKey?,
     mainScreenKey: TitledNavKey?,
+    eventViewModel: EventViewModel,
+    toHomePageEditor: () -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     BaseScreen(
         Triple(key, mainScreenKey, false),
@@ -154,9 +169,67 @@ fun LauncherSettingsScreen(
             isVisible = isVisible
         ) { scope ->
             AnimatedItem(scope) { yOffset ->
+                val importLauncher = rememberLauncherForActivityResult(
+                    contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                ) { uri ->
+                    uri?.let {
+                        coroutineScope.launch {
+                            val success = SettingsTransferUtils.importData(context, it)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    if (success) R.string.settings_import_success else R.string.settings_import_failed,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+
                 SettingsCardColumn(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    SettingsCard(
+                        position = CardPosition.Top,
+                        title = stringResource(R.string.settings_export),
+                        onClick = {
+                            val activity = context as? android.app.Activity ?: return@SettingsCard
+                            checkStoragePermissions(
+                                activity = activity,
+                                title = R.string.storage_permission_request_title,
+                                message = context.getString(R.string.storage_permission_request_message),
+                                hasPermission = {
+                                    coroutineScope.launch {
+                                        val file = SettingsTransferUtils.exportSettings(context)
+                                        withContext(Dispatchers.Main) {
+                                            if (file != null) {
+                                                Toast.makeText(context, context.getString(R.string.settings_export_success, file.absolutePath), Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, R.string.settings_export_failed, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    )
+                    SettingsCard(
+                        position = CardPosition.Bottom,
+                        title = stringResource(R.string.settings_import),
+                        onClick = {
+                            importLauncher.launch("application/json")
+                        }
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
                     var customColorOperation by remember { mutableStateOf<CustomColorOperation>(CustomColorOperation.None) }
@@ -323,6 +396,181 @@ fun LauncherSettingsScreen(
                 }
             }
 
+            //启动器主页
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    val typeUnit = AllSettings.homePageType
+                    val urlUnit = AllSettings.homePageURL
+
+                    SettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Single,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(all = 16.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_launcher_home_page_title),
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            //类型选择
+                            FlowRow(
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                HomePageType.entries.forEach { type ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = type == typeUnit.state,
+                                            onClick = {
+                                                typeUnit.save(type)
+                                                eventViewModel.sendEvent(
+                                                    EventViewModel.Event.HomePage.Reload
+                                                )
+                                            }
+                                        )
+                                        Text(
+                                            text = stringResource(type.textRes),
+                                            style = MaterialTheme.typography.labelMedium,
+                                        )
+                                    }
+                                }
+                            }
+                            //从本地加载
+                            AnimatedVisibility(
+                                visible = typeUnit.state == HomePageType.FromLocal
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    WarningCard(
+                                        title = stringResource(R.string.generic_tip),
+                                        icon = { innerModifier ->
+                                            Icon(
+                                                modifier = innerModifier,
+                                                painter = painterResource(R.drawable.ic_lightbulb),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = {
+                                            Text(
+                                                text = stringResource(R.string.settings_launcher_home_page_type_local_tip),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_launcher_home_page_type_warning),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        FilledTonalButton(
+                                            onClick = {
+                                                eventViewModel.sendEvent(
+                                                    EventViewModel.Event.HomePage.Reload
+                                                )
+                                            }
+                                        ) {
+                                            Text(text = stringResource(R.string.generic_refresh))
+                                        }
+                                        //生成官方主页文档
+                                        FilledTonalButton(
+                                            onClick = {
+                                                eventViewModel.sendEvent(
+                                                    EventViewModel.Event.HomePage.GenDocPage
+                                                )
+                                            }
+                                        ) {
+                                            Text(text = stringResource(R.string.settings_launcher_home_page_type_local_gen_doc))
+                                        }
+                                        val viewModel = LocalHomePageViewModel.current
+                                        //编辑主页文件
+                                        FilledTonalButton(
+                                            onClick = {
+                                                viewModel.loadLocalEditor()
+                                                toHomePageEditor()
+                                            }
+                                        ) {
+                                            Text(text = stringResource(R.string.generic_edit))
+                                        }
+                                    }
+                                }
+                            }
+
+                            //从网络加载
+                            AnimatedVisibility(
+                                visible = typeUnit.state == HomePageType.FromURL
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    WarningCard(
+                                        title = stringResource(R.string.generic_tip),
+                                        icon = { innerModifier ->
+                                            Icon(
+                                                modifier = innerModifier,
+                                                painter = painterResource(R.drawable.ic_lightbulb),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = {
+                                            Text(
+                                                text = stringResource(R.string.settings_launcher_home_page_type_url_tip),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_launcher_home_page_type_warning),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    )
+                                    //主页下载链接
+                                    OwnOutlinedTextField(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        value = urlUnit.state,
+                                        onValueChange = { urlUnit.save(it) },
+                                        singleLine = true,
+                                        label = {
+                                            Text(text = stringResource(R.string.settings_launcher_home_page_url))
+                                        },
+                                        trailingIcon = {
+                                            IconButton(
+                                                onClick = {
+                                                    eventViewModel.sendEvent(
+                                                        EventViewModel.Event.HomePage.Reload
+                                                    )
+                                                }
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_refresh),
+                                                    contentDescription = stringResource(R.string.generic_refresh)
+                                                )
+                                            }
+                                        },
+                                        shape = MaterialTheme.shapes.large
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             //动画设置板块
             AnimatedItem(scope) { yOffset ->
                 SettingsCardColumn(
@@ -379,18 +627,36 @@ fun LauncherSettingsScreen(
                         ListSettingsCard(
                             modifier = Modifier.fillMaxWidth(),
                             position = CardPosition.Top,
-                            unit = AllSettings.gameDownloadSource,
+                            unit = AllSettings.fetchModLoaderSource,
                             items = MirrorSourceType.entries,
-                            title = stringResource(R.string.settings_launcher_mirror_game_source_title),
+                            title = stringResource(R.string.settings_launcher_mirror_modloader_title),
                             getItemText = { stringResource(it.textRes) }
                         )
 
                         ListSettingsCard(
                             modifier = Modifier.fillMaxWidth(),
                             position = CardPosition.Middle,
-                            unit = AllSettings.assetPlatformSource,
+                            unit = AllSettings.fileDownloadSource,
                             items = MirrorSourceType.entries,
-                            title = stringResource(R.string.settings_launcher_mirror_asset_platform_source_title),
+                            title = stringResource(R.string.settings_launcher_mirror_file_download_title),
+                            getItemText = { stringResource(it.textRes) }
+                        )
+
+                        ListSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            unit = AllSettings.assetSearchSource,
+                            items = MirrorSourceType.entries,
+                            title = stringResource(R.string.settings_launcher_mirror_assets_search_title),
+                            getItemText = { stringResource(it.textRes) }
+                        )
+
+                        ListSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            unit = AllSettings.assetDownloadSource,
+                            items = MirrorSourceType.entries,
+                            title = stringResource(R.string.settings_launcher_mirror_assets_download_title),
                             getItemText = { stringResource(it.textRes) }
                         )
                     }
@@ -437,6 +703,22 @@ fun LauncherSettingsScreen(
                                 )
                             )
                         }
+                    )
+                }
+            }
+
+            AnimatedItem(scope) { yOffset ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+                ) {
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Top,
+                        unit = AllSettings.showSnapshotVersions,
+                        title = stringResource(R.string.settings_launcher_show_snapshot_versions_title),
+                        summary = stringResource(R.string.settings_launcher_show_snapshot_versions_summary)
                     )
                 }
             }
@@ -521,14 +803,13 @@ private fun CustomThemeDialog(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.55f)
-                .heightIn(max = rememberDialogMaxHeight())
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 16.dp)
-                    .heightIn(max = (maxHeight - 32.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 32.dp)
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -563,8 +844,8 @@ private fun CustomThemeDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fadeEdge(scrollState)
-                                    .nonInteractiveScrollbar(
-                                        state = scrollState.scrollIndicatorState!!,
+                                    .scrollbar(
+                                        state = scrollState.scrollIndicatorState,
                                         orientation = Orientation.Vertical,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),

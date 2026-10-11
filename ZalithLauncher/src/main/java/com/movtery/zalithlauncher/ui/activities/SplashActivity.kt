@@ -57,6 +57,8 @@ private const val TAG = "SplashActivity"
 const val EXTRA_IMPORT_ACTION = "EXTRA_IMPORT_ACTION"
 const val EXTRA_IMPORT_URI    = "EXTRA_IMPORT_URI"
 const val EXTRA_IMPORT_TYPE   = "EXTRA_IMPORT_TYPE"
+const val EXTRA_LAUNCH_VERSION = "EXTRA_LAUNCH_VERSION"
+const val EXTRA_OPEN_LOG = "EXTRA_OPEN_LOG"
 
 const val IMPORT_TYPE_MODPACK = "modpack"
 const val IMPORT_TYPE_CONTROLS = "controls"
@@ -67,8 +69,6 @@ const val IMPORT_TYPE_UNKNOWN = "unknown"
 class SplashActivity : BaseAppCompatActivity() {
     private val unpackItems: MutableList<InstallableItem> = ArrayList()
     private val finishedTaskCount = AtomicInteger(0)
-
-    private var pendingImportIntent: Intent? = null
 
     private val backStackViewModel: SplashBackStackViewModel by viewModels()
 
@@ -104,17 +104,25 @@ class SplashActivity : BaseAppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
 
-        //若依赖未完成，暂存外部导入，待依赖完成后处理
+        //若依赖未完成，忽略所有外部导入
         if (!areAllTasksFinished()) {
-            if (isImportIntent(intent) && !isLauncherIntent(intent)) {
-                pendingImportIntent = intent
-                Logger.info(TAG, "Import intent received but dependencies are not ready, deferring.")
-            }
+            Logger.info(TAG, "Import intent received but dependencies are not ready, ignoring.")
             return
         }
 
         if (isImportIntent(intent) && !isLauncherIntent(intent)) {
             handleImportIntent(intent)
+            finish()
+            return
+        }
+
+        val versionName = intent.getStringExtra(EXTRA_LAUNCH_VERSION)
+        if (versionName != null) {
+            val forward = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(EXTRA_LAUNCH_VERSION, versionName)
+            }
+            startActivity(forward)
             finish()
         }
     }
@@ -222,18 +230,6 @@ class SplashActivity : BaseAppCompatActivity() {
                 //检查并设置默认的Java环境
                 if (getValue().isEmpty()) save(Jre.JRE_8.jreName)
             }
-            finishSplash()
-        }
-    }
-
-    private fun finishSplash() {
-        val import = pendingImportIntent
-            ?.takeIf { isImportIntent(it) && !isLauncherIntent(it) }
-            ?: intent.takeIf { isImportIntent(it) && !isLauncherIntent(it) }
-
-        if (import != null && handleImportIntent(import)) {
-            finish()
-        } else {
             swapToMain()
         }
     }
@@ -256,10 +252,7 @@ class SplashActivity : BaseAppCompatActivity() {
     }
 
     private fun swapToMain() {
-        val forward = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        startActivity(forward)
+        startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
 
@@ -271,7 +264,7 @@ class SplashActivity : BaseAppCompatActivity() {
         val uri: Uri? = when (source.action) {
             Intent.ACTION_SEND -> {
                 source.clipData?.getItemAt(0)?.uri
-                    ?: source.getParcelableExtra(Intent.EXTRA_STREAM)
+                    ?: @Suppress("DEPRECATION") source.getParcelableExtra(Intent.EXTRA_STREAM)
             }
             Intent.ACTION_VIEW -> source.data
             else -> null

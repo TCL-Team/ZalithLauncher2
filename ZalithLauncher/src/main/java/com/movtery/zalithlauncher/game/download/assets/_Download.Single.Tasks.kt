@@ -18,10 +18,13 @@
 
 package com.movtery.zalithlauncher.game.download.assets
 
+import android.content.Context
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
+import com.movtery.zalithlauncher.game.download.assets.platform.getVersionById
+import com.movtery.zalithlauncher.game.download.assets.platform.getVersions
 import com.movtery.zalithlauncher.game.download.assets.platform.mcim.mapMCIMMirrorUrls
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.path.PathManager
@@ -39,6 +42,7 @@ import io.ktor.client.plugins.ResponseException
 import okio.IOException
 import org.apache.commons.io.FileUtils
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
@@ -188,3 +192,107 @@ fun mapExceptionToMessage(e: Throwable): AndroidStringText {
         }
     }
 }
+
+/**
+ * Resolve and install the selected platform dependencies for the requested game versions.
+ * Platform versions are initialized before compatibility metadata is inspected, since several
+ * platform implementations lazily fetch their file and loader details.
+ */
+@Suppress("UNUSED_PARAMETER")
+suspend fun downloadDependenciesBatch(
+    context: Context,
+    deps: List<PlatformVersion.PlatformDependency>,
+    gameVersions: List<Version>,
+    folder: String,
+    submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+    targetLoaders: Set<String> = emptySet(),
+    onEachError: (name: String, error: String) -> Unit = { _, _ -> }
+) {
+    if (gameVersions.isEmpty()) return
+
+    val targetGameVersions = gameVersions
+        .mapNotNull { it.getVersionInfo()?.minecraftVersion }
+        .toSet()
+    val normalizedLoaders = targetLoaders.mapTo(mutableSetOf()) { normalizeLoaderName(it) }
+
+    deps.forEach { dependency ->
+        val dependencyName = dependency.projectId ?: dependency.versionId ?: "unknown dependency"
+        try {
+            val candidates = when {
+                dependency.versionId != null -> listOf(
+                    getVersionById(dependency.versionId, dependency.platform)
+                )
+                dependency.projectId != null -> getVersions(
+                    projectID = dependency.projectId,
+                    platform = dependency.platform
+                )
+                else -> {
+                    onEachError(dependencyName, "Dependency has neither a project id nor a version id")
+                    return@forEach
+                }
+            }
+
+            val initialized = candidates.mapNotNull { candidate ->
+                try {
+                    val projectId = dependency.projectId ?: candidate.platformProjectId()
+                    if (candidate.initFile(projectId)) candidate else null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Logger.warning(TAG, "Failed to initialize dependency $dependencyName", error)
+                    null
+                }
+            }
+
+            if (initialized.isEmpty()) {
+                onEachError(dependencyName, "No downloadable file found for this dependency")
+                return@forEach
+            }
+
+            val gameCompatible = if (targetGameVersions.isEmpty()) {
+                initialized
+            } else {
+                initialized.filter { version ->
+                    version.platformGameVersion().any(targetGameVersions::contains)
+                }
+            }
+            if (gameCompatible.isEmpty()) {
+                onEachError(dependencyName, "No version supports ${targetGameVersions.joinToString()}")
+                return@forEach
+            }
+
+            val loaderCompatible = if (normalizedLoaders.isEmpty()) {
+                gameCompatible
+            } else {
+                gameCompatible.filter { version ->
+                    val loaders = version.platformLoaders()
+                    loaders.isEmpty() || loaders.any { loader ->
+                        val normalized = normalizeLoaderName(loader.getDisplayName())
+                        normalizedLoaders.any { target ->
+                            normalized == target || normalized.contains(target) || target.contains(normalized)
+                        }
+                    }
+                }
+            }
+            if (loaderCompatible.isEmpty()) {
+                onEachError(dependencyName, "No version supports the selected mod loader")
+                return@forEach
+            }
+
+            downloadSingleForVersions(
+                version = loaderCompatible.first(),
+                versions = gameVersions,
+                folder = folder,
+                submitError = submitError
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Logger.warning(TAG, "Failed to download dependency $dependencyName", error)
+            onEachError(dependencyName, error.message ?: error.javaClass.simpleName)
+        }
+    }
+}
+
+private fun normalizeLoaderName(value: String): String =
+    value.filter(Char::isLetterOrDigit).lowercase(java.util.Locale.ROOT)

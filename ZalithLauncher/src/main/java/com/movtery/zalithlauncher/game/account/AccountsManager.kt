@@ -309,6 +309,14 @@ object AccountsManager {
         return uniqueUUID.isNotEmpty() && _accounts.any { it.uniqueUUID == uniqueUUID }
     }
 
+    /** Reorders the visible account list after a drag operation. */
+    fun reorderAccount(fromIndex: Int, toIndex: Int) {
+        if (fromIndex !in _accounts.indices || toIndex !in _accounts.indices || fromIndex == toIndex) return
+        val account = _accounts.removeAt(fromIndex)
+        _accounts.add(toIndex, account)
+        _accountsFlow.value = _accounts.toList()
+    }
+
     /**
      * 认证服务器是否存在
      */

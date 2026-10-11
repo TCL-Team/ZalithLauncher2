@@ -92,6 +92,9 @@ class GameHandler(
         scope: CoroutineScope
     ) {
         ZLBridge.setupBridgeWindow(surface)
+        if (AllSettings.fpsLimitEnabled.getValue()) {
+            ZLBridge.fpsLimitSet(AllSettings.fpsLimit.getValue())
+        }
 
         MCOptions.setup(activity, version)
 
@@ -245,6 +248,7 @@ class GameHandler(
             getAccountName = { account.username },
             eventViewModel = eventViewModel,
             gamepadViewModel = gamepadViewModel,
+            submitError = { errorViewModel.showError(it) }
         )
     }
 
