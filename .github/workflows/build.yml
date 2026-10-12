@@ -69,6 +69,13 @@ jobs:
               tail -n 25 "$log_file"
             } | tail -n 60 > "$diagnostic_file"
             {
+              echo "Gradle process exit status: $build_status"
+              if [[ -r /sys/fs/cgroup/memory.events ]]; then
+                echo '--- cgroup memory events ---'
+                cat /sys/fs/cgroup/memory.events
+              fi
+            } >> "$diagnostic_file"
+            {
               echo '### Gradle build diagnostics'
               echo '```text'
               cat "$diagnostic_file"
