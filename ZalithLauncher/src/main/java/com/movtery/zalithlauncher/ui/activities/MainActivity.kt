@@ -857,15 +857,8 @@ private fun PlayerNoticeDialog() {
     suspend fun fetch() {
         val notice = PlayerNoticeManager.fetchNotice()
         if (notice.isNotEmpty()) {
-            if (PlayerNoticeManager.isDismissed(notice)) {
-                if (content != notice) {
-                    isDismissed = false
-                }
-                content = notice
-            } else {
-                content = notice
-                isDismissed = false
-            }
+            content = notice
+            isDismissed = PlayerNoticeManager.isDismissed(notice)
         }
     }
 
