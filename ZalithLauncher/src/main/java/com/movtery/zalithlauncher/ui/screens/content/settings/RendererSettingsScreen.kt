@@ -115,6 +115,7 @@ fun RendererSettingsScreen(
         Triple(key, mainScreenKey, false),
         Triple(NormalNavKey.Settings.Renderer, settingsScreenKey, false)
     ) { isVisible ->
+        val context = LocalContext.current
         var showBenchmark by remember { mutableStateOf(false) }
         var driverToDelete by remember { mutableStateOf<Driver?>(null) }
 
