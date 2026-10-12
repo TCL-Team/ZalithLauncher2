@@ -58,7 +58,7 @@ jobs:
         run: |
           chmod +x gradlew
           log_file="$RUNNER_TEMP/gradle-build.log"
-          if ./gradlew --max-workers=2 -Dkotlin.compiler.execution.strategy=in-process ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }} --console=plain --stacktrace 2>&1 | tee "$log_file"; then
+          if ./gradlew --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }} --console=plain --stacktrace 2>&1 | tee "$log_file"; then
             exit 0
           else
             build_status=${PIPESTATUS[0]}
