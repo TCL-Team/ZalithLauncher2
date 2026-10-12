@@ -815,9 +815,4 @@ object AllSettings : SettingsRegistry() {
      */
     val showSnapshotVersions = boolSetting("showSnapshotVersions", false)
 
-    /**
-     * 启动 MC26.2+ 时，自动检查 Vulkan
-     */
-    val autoVulkanChecker = boolSetting("autoVulkanChecker", true)
-
 }

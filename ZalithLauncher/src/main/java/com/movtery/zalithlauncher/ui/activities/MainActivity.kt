@@ -352,7 +352,6 @@ class MainActivity : BaseAppCompatActivity() {
                         exitActivity = {
                             this@MainActivity.finish()
                         },
-                        waitForVulkanChecker = vulkanCheckerViewModel::waitForVulkanChecker,
                         ensureVulkanSupported = vulkanCheckerViewModel::ensureSupported,
                         submitError = {
                             errorViewModel.showError(it)
@@ -495,7 +494,6 @@ class MainActivity : BaseAppCompatActivity() {
                     },
                     confirmResult = {
                         vulkanCheckerViewModel.resumeCont()
-                        AllSettings.autoVulkanChecker.save(false)
                     }
                 )
 

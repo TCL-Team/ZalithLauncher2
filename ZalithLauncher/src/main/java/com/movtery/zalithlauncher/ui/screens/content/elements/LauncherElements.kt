@@ -57,6 +57,9 @@ import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.game.version.installed.hasVulkanBackend
+import com.movtery.zalithlauncher.game.version.installed.utils.isBiggerVer
+import com.movtery.zalithlauncher.game.version.installed.utils.isLowerVer
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.launcherMMKV
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
@@ -70,7 +73,6 @@ import com.movtery.zalithlauncher.utils.file.InvalidFilenameException
 import com.movtery.zalithlauncher.utils.file.checkFilenameValidity
 import com.movtery.zalithlauncher.utils.hasStoragePermission
 import com.movtery.zalithlauncher.utils.string.isBiggerTo
-import com.movtery.zalithlauncher.utils.string.isLowerTo
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
@@ -193,7 +195,6 @@ fun LaunchGameOperation(
     launchGameOperation: LaunchGameOperation,
     updateOperation: (LaunchGameOperation) -> Unit,
     exitActivity: () -> Unit,
-    waitForVulkanChecker: suspend (Version) -> Unit,
     ensureVulkanSupported: suspend (Version) -> Boolean,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
     toAccountManageScreen: (FirstLoginMenu) -> Unit = {},
@@ -392,23 +393,22 @@ fun LaunchGameOperation(
                 val rendererMinVer = currentRenderer.getMinMCVersion()
                 val rendererMaxVer = currentRenderer.getMaxMCVersion()
 
-                // Follow upstream Zalith's Vulkan capability gate: a renderer's version
-                // limit is bypassed only after this device/driver passed the game's Vulkan profile.
-                val usingSupportedVulkanBackend =
-                    version.getGraphicsApi() == GraphicsApi.VULKAN && ensureVulkanSupported(version)
-                val isRendererUnsupported = !usingSupportedVulkanBackend && (
-                    (rendererMinVer?.let { mcVer.isLowerTo(it) } ?: false) ||
-                            (rendererMaxVer?.let { mcVer.isBiggerTo(it) } ?: false)
-                )
+                // Match official Zalith's per-version Vulkan gate: only skip renderer version
+                // limits when this client has a Vulkan backend and the selected driver supports it.
+                if (!version.hasVulkanBackend() || !ensureVulkanSupported(version)) {
+                    val isRendererUnsupported =
+                        (rendererMinVer?.let { mcVer.isLowerVer(it) } ?: false) ||
+                                (rendererMaxVer?.let { mcVer.isBiggerVer(it) } ?: false)
 
-                if (isRendererUnsupported) {
-                    updateOperation(LaunchGameOperation.UnsupportedRenderer(currentRenderer, version, quickPlay))
-                    return@LaunchedEffect
+                    if (isRendererUnsupported) {
+                        updateOperation(LaunchGameOperation.UnsupportedRenderer(currentRenderer, version, quickPlay))
+                        return@LaunchedEffect
+                    }
                 }
 
                 val unsupportedPlugins = NativePluginManager.getCheckedPlugins().filter { plugin ->
-                    (plugin.minMCVer?.let { mcVer.isLowerTo(it) } ?: false) ||
-                            (plugin.maxMCVer?.let { mcVer.isBiggerTo(it) } ?: false)
+                    (plugin.minMCVer?.let { mcVer.isLowerVer(it) } ?: false) ||
+                            (plugin.maxMCVer?.let { mcVer.isBiggerVer(it) } ?: false)
                 }
                 if (unsupportedPlugins.isNotEmpty()) {
                     updateOperation(LaunchGameOperation.UnsupportedPlugins(unsupportedPlugins, version, quickPlay))
@@ -449,7 +449,6 @@ fun LaunchGameOperation(
                     context = activity,
                     version = version,
                     exitActivity = exitActivity,
-                    waitForVulkanChecker = { waitForVulkanChecker(version) },
                     submitError = submitError,
                     skipAccountRefresh = launchGameOperation.skipAccountRefresh
                 )
