@@ -601,6 +601,12 @@ class GameInstaller(
         }
     }
 
+    fun createBackgroundTask(onCancelRequest: () -> Unit): Task =
+        taskExecutor.createBackgroundTask(
+            message = androidText(R.string.download_game_install_title),
+            onCancelRequest = onCancelRequest
+        )
+
     fun cancelInstall(
         clearTarget: Boolean = true
     ) {

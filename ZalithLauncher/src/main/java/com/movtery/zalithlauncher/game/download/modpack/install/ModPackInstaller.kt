@@ -282,6 +282,12 @@ class ModPackInstaller(
         )
     }
 
+    fun createBackgroundTask(onCancelRequest: () -> Unit): Task =
+        taskExecutor.createBackgroundTask(
+            message = androidText(R.string.download_modpack_install_title),
+            onCancelRequest = onCancelRequest
+        )
+
     /**
      * 取消安装
      */

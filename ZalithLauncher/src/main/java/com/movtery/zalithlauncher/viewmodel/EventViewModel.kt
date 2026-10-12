@@ -119,7 +119,7 @@ class EventViewModel : ViewModel() {
             data class Event(val event: MarkdownBlock.Button.Event) : HomePage
         }
         /** 设备 Vulkan 检查 */
-        data class VulkanCheck(val version: Version): Event
+        data object VulkanCheck : Event
 
         /** 在 MainActivity 中显示 Toast */
         data class ShowToast(

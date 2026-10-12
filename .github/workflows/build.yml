@@ -20,6 +20,8 @@ on:
 jobs:
   build:
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -51,6 +53,8 @@ jobs:
 
       - name: Build APK for ${{ matrix.arch }}
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           chmod +x gradlew
           log_file="$RUNNER_TEMP/gradle-build.log"

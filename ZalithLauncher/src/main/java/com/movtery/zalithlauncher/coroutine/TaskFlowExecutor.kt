@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.coroutine
 
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor.TaskPhase
 import com.movtery.zalithlauncher.keepalive.TaskKeepAlive
+import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.network.isInterruptedIOException
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
@@ -181,7 +182,26 @@ class TaskFlowExecutor(
         }
     }
 
-    fun isRunning(): Boolean = job != null
+    /**
+     * Create a TaskSystem entry that remains visible while this flow runs.
+     */
+    fun createBackgroundTask(
+        message: AndroidStringText,
+        onCancelRequest: () -> Unit
+    ): Task {
+        val flowJob = job
+        return Task.runTask(
+            dispatcher = Dispatchers.IO,
+            task = { task ->
+                task.updateProgress(-1f)
+                task.updateMessage(message)
+                flowJob?.join()
+            },
+            onCancel = onCancelRequest
+        )
+    }
+
+    fun isRunning(): Boolean = job?.isActive == true
 
     fun cancel() {
         //先取消当前正在执行的任务及其所有子协程

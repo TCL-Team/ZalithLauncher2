@@ -190,6 +190,9 @@ val downloadMobileGlues by tasks.registering {
                 httpConnection.setRequestProperty("Accept", "application/vnd.github+json")
                 httpConnection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
                 httpConnection.setRequestProperty("User-Agent", "ZalithLauncher-build")
+                System.getenv("GITHUB_TOKEN")?.takeIf { it.isNotBlank() }?.let { token ->
+                    httpConnection.setRequestProperty("Authorization", "Bearer $token")
+                }
                 cachedEtag.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }?.let { etag ->
                     httpConnection.setRequestProperty("If-None-Match", etag)
                 }
