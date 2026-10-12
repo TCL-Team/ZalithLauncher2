@@ -168,6 +168,7 @@ fun LaunchGameOperation(
     updateOperation: (LaunchGameOperation) -> Unit,
     exitActivity: () -> Unit,
     waitForVulkanChecker: suspend (Version) -> Unit,
+    ensureVulkanSupported: suspend (Version) -> Boolean,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
     toAccountManageScreen: (FirstLoginMenu) -> Unit = {},
     toVersionManageScreen: () -> Unit = {}
@@ -276,13 +277,17 @@ fun LaunchGameOperation(
             val renderer = launchGameOperation.renderer
             val version = launchGameOperation.version
             val quickPlay = launchGameOperation.quickPlay
-            val switchMobileGluesToVulkan = needsMobileGluesVulkanWorkaround(renderer, version)
+            val hasMobileGluesVulkanWorkaround = needsMobileGluesVulkanWorkaround(renderer, version)
+            val switchMobileGluesToVulkan =
+                hasMobileGluesVulkanWorkaround && version.getGraphicsApi() != GraphicsApi.VULKAN
+            val vulkanCheckFailed =
+                hasMobileGluesVulkanWorkaround && version.getGraphicsApi() == GraphicsApi.VULKAN
             SimpleAlertDialog(
                 title = stringResource(R.string.generic_warning),
-                text = if (switchMobileGluesToVulkan) {
-                    stringResource(R.string.mobileglues_26_3_shader_issue)
-                } else {
-                    stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName())
+                text = when {
+                    switchMobileGluesToVulkan -> stringResource(R.string.mobileglues_26_3_shader_issue)
+                    vulkanCheckFailed -> stringResource(R.string.mobileglues_vulkan_check_failed)
+                    else -> stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName())
                 },
                 confirmText = if (switchMobileGluesToVulkan) {
                     stringResource(R.string.mobileglues_switch_this_version_to_vulkan)
@@ -295,8 +300,11 @@ fun LaunchGameOperation(
                             graphicsApi = GraphicsApi.VULKAN
                             save()
                         }
+                        // Re-run pre-launch checks with the new per-version backend choice.
+                        updateOperation(LaunchGameOperation.TryLaunch(version, quickPlay))
+                    } else {
+                        updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
                     }
-                    updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
                 },
                 onDismiss = {
                     updateOperation(LaunchGameOperation.None)
@@ -378,10 +386,11 @@ fun LaunchGameOperation(
 
                 val mcVer = version.getVersionInfo()!!.minecraftVersion
 
-                val usingNativeVulkanForKnownMobileGluesIssue =
-                    needsMobileGluesVulkanWorkaround(currentRenderer, version) &&
-                            version.getGraphicsApi() == GraphicsApi.VULKAN
-                val isRendererUnsupported = !usingNativeVulkanForKnownMobileGluesIssue && (
+                // Follow upstream Zalith's Vulkan capability gate: a renderer's version
+                // limit is bypassed only after this device/driver passed the game's Vulkan profile.
+                val usingSupportedVulkanBackend =
+                    version.getGraphicsApi() == GraphicsApi.VULKAN && ensureVulkanSupported(version)
+                val isRendererUnsupported = !usingSupportedVulkanBackend && (
                     (rendererMinVer?.let { mcVer.isLowerTo(it) } ?: false) ||
                             (rendererMaxVer?.let { mcVer.isBiggerTo(it) } ?: false)
                 )

@@ -56,6 +56,7 @@ import com.movtery.zalithlauncher.game.control.ControlManager
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.renderer.Renderers
+import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.activities.EXTRA_LAUNCH_VERSION
 import com.movtery.zalithlauncher.ui.activities.EXTRA_OPEN_LOG
@@ -290,7 +291,7 @@ class MainActivity : BaseAppCompatActivity() {
                         handleHomePageEvent(event0.key, event0.data)
                     }
                     is EventViewModel.Event.VulkanCheck -> {
-                        checkVulkan()
+                        checkVulkan(event.version)
                     }
                     is EventViewModel.Event.OpenLog -> {
                         screenBackStackModel.mainScreen.backStack.navigateToLogView(
@@ -352,6 +353,7 @@ class MainActivity : BaseAppCompatActivity() {
                             this@MainActivity.finish()
                         },
                         waitForVulkanChecker = vulkanCheckerViewModel::waitForVulkanChecker,
+                        ensureVulkanSupported = vulkanCheckerViewModel::ensureSupported,
                         submitError = {
                             errorViewModel.showError(it)
                         },
@@ -488,8 +490,8 @@ class MainActivity : BaseAppCompatActivity() {
                     onChange = {
                         vulkanCheckerViewModel.changeOperation(it)
                     },
-                    startCheck = {
-                        eventViewModel.sendEvent(EventViewModel.Event.VulkanCheck)
+                    startCheck = { version ->
+                        eventViewModel.sendEvent(EventViewModel.Event.VulkanCheck(version))
                     },
                     confirmResult = {
                         vulkanCheckerViewModel.resumeCont()
@@ -514,19 +516,9 @@ class MainActivity : BaseAppCompatActivity() {
     /**
      * 检查设备 Vulkan 支持情况
      */
-    private suspend fun checkVulkan() {
-        val driver = DriverPluginManager.getDriver(AllSettings.vulkanDriver.getValue())
-        val useTurnip = !(AllSettings.zinkPreferSystemDriver.getValue() || driver.isLauncher)
-
-        withContext(Dispatchers.Main) {
-            val result = if (useTurnip) {
-                val tempDir = File(PathManager.DIR_CACHE, "vulkan_temp")
-                VulkanChecker.checkCapabilities(null, driver.path, tempDir.absolutePath)
-            } else {
-                VulkanChecker.checkCapabilities(null, null, null)
-            }
-            vulkanCheckerViewModel.changeOperation(VCOperation.Result(result, useTurnip))
-        }
+    private suspend fun checkVulkan(version: Version) {
+        val (result, useTurnip) = vulkanCheckerViewModel.check(version)
+        vulkanCheckerViewModel.changeOperation(VCOperation.Result(result, useTurnip))
     }
 
     /**

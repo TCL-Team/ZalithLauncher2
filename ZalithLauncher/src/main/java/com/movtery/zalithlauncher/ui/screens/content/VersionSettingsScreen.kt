@@ -467,7 +467,7 @@ private fun NavigationUI(
                         backToMainScreen = backToMainScreen,
                         onCheckVulkan = {
                             eventViewModel.sendEvent(
-                                EventViewModel.Event.VulkanCheck
+                                EventViewModel.Event.VulkanCheck(version)
                             )
                         },
                         showToast = { text ->
