@@ -25,6 +25,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -170,6 +172,7 @@ fun SmallOutlinedEditField(
     value: String,
     onValueChange: (String) -> Unit,
     hint: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     shape: Shape = OutlinedTextFieldDefaults.shape,
@@ -236,16 +239,24 @@ fun SmallOutlinedEditField(
                     .border(width = borderWidth, color = borderColor, shape = shape),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 8.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.CenterStart
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (value.isEmpty()) {
-                        hint?.invoke()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (value.isEmpty()) {
+                            hint?.invoke()
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
+                    trailingIcon?.invoke()
                 }
             }
         },

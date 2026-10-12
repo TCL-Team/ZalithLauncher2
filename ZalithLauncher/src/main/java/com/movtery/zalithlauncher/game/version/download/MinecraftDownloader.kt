@@ -54,7 +54,8 @@ class MinecraftDownloader(
     private val onCompletion: suspend (Task) -> Unit = {},
     private val onError: (message: String) -> Unit = {},
     private val onThrowable: ((throwable: Throwable) -> Unit)? = null,
-    private val maxDownloadThreads: Int = DEFAULT_DOWNLOAD_THREADS
+    private val maxDownloadThreads: Int = DEFAULT_DOWNLOAD_THREADS,
+    private val verifyIntegrity: Boolean = true
 ) {
     private var allDownloadTasks = mutableListOf<DownloadTask>()
 
@@ -213,7 +214,7 @@ class MinecraftDownloader(
         allDownloadTasks.add(
             DownloadTask(
                 urls = urls,
-                verifyIntegrity = true,
+                verifyIntegrity = verifyIntegrity,
                 targetFile = targetFile,
                 sha1 = sha1,
                 size = size,

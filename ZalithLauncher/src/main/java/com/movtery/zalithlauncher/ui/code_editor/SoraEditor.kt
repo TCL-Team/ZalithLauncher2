@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.ui.code_editor
 
 import android.graphics.Typeface
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -42,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.theme.onBackgroundColor
+import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
@@ -65,14 +67,26 @@ fun SoraEditor(
     isReadOnly: Boolean = false,
     language: Language? = null,
     scheme: EditorColorScheme = SchemeGitHub(),
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    onTextChange: () -> Unit = {},
+    onEditorCreated: ((CodeEditor) -> Unit)? = null,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = onBackgroundColor(),
+    topBar: (@Composable () -> Unit)? = null,
+    snackbarHost: (@Composable () -> Unit)? = null,
+    floatingActionButton: (@Composable () -> Unit)? = null,
+    content: (@Composable BoxScope.() -> Unit)? = null
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        contentColor = onBackgroundColor(),
+        containerColor = containerColor,
+        contentColor = contentColor,
+        topBar = { topBar?.invoke() },
+        snackbarHost = { snackbarHost?.invoke() },
         floatingActionButton = {
-            if (!isReadOnly && state is EditorState.Success) {
+            if (floatingActionButton != null) {
+                floatingActionButton()
+            } else if (!isReadOnly && state is EditorState.Success) {
                 FloatingActionButton(
                     onClick = onSaveClick
                 ) {
@@ -117,6 +131,12 @@ fun SoraEditor(
                                 setPinLineNumber(true)
                                 isEditable = !isReadOnly
                                 setText(state.content, true, null)
+                                subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
+                                    if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
+                                        onTextChange()
+                                    }
+                                }
+                                onEditorCreated?.invoke(this)
                             }.also { view = it }
                         },
                         update = { view ->
@@ -139,6 +159,7 @@ fun SoraEditor(
                     )
                 }
             }
+            content?.invoke(this)
         }
     }
 }

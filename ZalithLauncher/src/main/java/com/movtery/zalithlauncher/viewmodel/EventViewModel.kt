@@ -86,8 +86,10 @@ class EventViewModel : ViewModel() {
         }
         /** 检查更新 */
         data object CheckUpdate : Event
-        /** 在浏览器访问链接 */
+        /** 在系统浏览器访问链接 */
         data class OpenLink(val url: String) : Event
+        /** 在启动器内置网页中打开链接 */
+        data class OpenWeb(val url: String) : Event
         /** 让 MainActivity 防止熄屏 */
         data class KeepScreen(val on: Boolean) : Event
         /** 导入控制布局 */

@@ -346,7 +346,7 @@ class MainActivity : BaseAppCompatActivity() {
                     LaunchGameOperation(
                         activity = this@MainActivity,
                         eventViewModel = eventViewModel,
-                        launchGameOperation = launchGameViewModel.launchGameOperation,
+                        launchGameOperation = launchGameViewModel.launchGameOperation.collectAsStateWithLifecycle().value,
                         updateOperation = { launchGameViewModel.updateOperation(it) },
                         exitActivity = {
                             this@MainActivity.finish()

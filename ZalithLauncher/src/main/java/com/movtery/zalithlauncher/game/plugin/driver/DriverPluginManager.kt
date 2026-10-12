@@ -75,6 +75,8 @@ object DriverPluginManager: ApkPluginManager() {
             driverList.add(
                 Driver(
                     id = "external_${directory.name}",
+                    appName = directory.name,
+                    appVersion = "",
                     name = directory.name,
                     summary = context.getString(R.string.settings_renderer_external_driver),
                     path = directory.absolutePath,

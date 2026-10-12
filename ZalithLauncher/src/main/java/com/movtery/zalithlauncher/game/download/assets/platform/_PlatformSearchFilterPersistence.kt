@@ -50,7 +50,7 @@ fun loadSearchFilter(key: String): PlatformSearchFilter? {
     }
 
     return PlatformSearchFilter(
-        gameVersion = persisted.gameVersion,
+        gameVersion = persisted.gameVersion.orEmpty(),
         sortField = sortField
     )
 }
