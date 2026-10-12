@@ -81,8 +81,10 @@ import com.movtery.zalithlauncher.context.copyLocalFile
 import com.movtery.zalithlauncher.context.getFileName
 import com.movtery.zalithlauncher.contract.extensionToMimeType
 import com.movtery.zalithlauncher.coroutine.Task
+import com.movtery.zalithlauncher.coroutine.TaskLogOutput
 import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.coroutine.TitledTask
+import com.movtery.zalithlauncher.ui.components.TaskLogCard
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.IconTextButton
@@ -345,7 +347,8 @@ fun TitleTaskFlowDialog(
     title: String,
     tasks: List<TitledTask>,
     onCancel: () -> Unit = {},
-    onMinimize: (() -> Unit)? = null
+    onMinimize: (() -> Unit)? = null,
+    logOutput: TaskLogOutput? = null
 ) {
     Dialog(
         onDismissRequest = {},
@@ -394,6 +397,15 @@ fun TitleTaskFlowDialog(
                                 task = task.task
                             )
                         }
+                    }
+
+                    logOutput?.let { output ->
+                        TaskLogCard(
+                            logOutput = output,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                        )
                     }
 
                     Row(

@@ -58,6 +58,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.movtery.layer_controller.data.HideLayerWhen
+import com.movtery.layer_controller.data.JoystickTriggerMode
 import com.movtery.layer_controller.data.VisibilityType
 import com.movtery.layer_controller.event.ClickEvent
 import com.movtery.layer_controller.observable.ObservableButtonStyle
@@ -165,6 +166,12 @@ fun VisibilityType.getVisibilityText(): String {
         VisibilityType.IN_MENU -> R.string.control_editor_edit_visibility_in_menu
     }
     return stringResource(textRes)
+}
+
+@Composable
+fun JoystickTriggerMode.getTriggerModeText(): String = when (this) {
+    JoystickTriggerMode.DRAG -> stringResource(R.string.control_editor_edit_joystick_trigger_mode_drag)
+    JoystickTriggerMode.TOUCH -> stringResource(R.string.control_editor_edit_joystick_trigger_mode_touch)
 }
 
 @Composable

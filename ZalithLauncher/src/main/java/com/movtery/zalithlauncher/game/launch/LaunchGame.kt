@@ -66,7 +66,8 @@ object LaunchGame {
         version: Version,
         exitActivity: () -> Unit,
         waitForVulkanChecker: suspend () -> Unit,
-        submitError: (ErrorViewModel.ThrowableMessage) -> Unit
+        submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+        skipAccountRefresh: Boolean = false
     ) {
         if (isLaunching) return
         val account = AccountsManager.currentAccountFlow.value ?: return
@@ -88,7 +89,7 @@ object LaunchGame {
             TaskSystem.submitTask(downloadTask) { isLaunching = false }
         }
 
-        val loginTask = createLoginTask(
+        val loginTask = if (skipAccountRefresh) null else createLoginTask(
             context = context,
             hasNetwork = hasNetwork,
             account = account,

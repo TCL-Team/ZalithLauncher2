@@ -412,8 +412,7 @@ private fun MotdText(
         modifier = modifier,
         description = description,
         fontSize = MaterialTheme.typography.bodySmall.fontSize,
-        maxLines = maxLines,
-        softWrap = true
+        maxLines = maxLines
     )
 }
 

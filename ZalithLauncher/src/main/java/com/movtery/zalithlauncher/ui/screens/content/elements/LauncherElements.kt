@@ -46,7 +46,9 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountsManager
+import com.movtery.zalithlauncher.game.account.isMicrosoftAccount
 import com.movtery.zalithlauncher.game.launch.LaunchGame
 import com.movtery.zalithlauncher.game.plugin.ApkPlugin
 import com.movtery.zalithlauncher.game.plugin.natives.NativePluginManager
@@ -96,6 +98,19 @@ sealed interface LaunchGameOperation {
     data class InvalidVersionName(val th: InvalidFilenameException) : LaunchGameOperation
     /** 没有可用账号 */
     data object NoAccount : LaunchGameOperation
+    /** 账号凭据失效，需要重新登录 */
+    data class AccountRelogin(
+        val account: Account,
+        val version: Version,
+        val quickPlay: QuickPlay?
+    ) : LaunchGameOperation
+    /** 启动前的账号刷新失败，可重试或跳过本次刷新 */
+    data class AccountRefreshFailed(
+        val account: Account,
+        val th: Throwable,
+        val version: Version,
+        val quickPlay: QuickPlay?
+    ) : LaunchGameOperation
 
     /** 渲染器可配置，但需要用到文件管理权限 */
     data class RendererNoStoragePermission(
@@ -133,7 +148,8 @@ sealed interface LaunchGameOperation {
     /** 正式启动 */
     data class RealLaunch(
         val version: Version,
-        val quickPlay: QuickPlay?
+        val quickPlay: QuickPlay?,
+        val skipAccountRefresh: Boolean = false
     ) : LaunchGameOperation
 }
 
@@ -176,6 +192,59 @@ fun LaunchGameOperation(
                 toAccountManageScreen(FirstLoginMenu.NORMAL)
                 updateOperation(LaunchGameOperation.None)
             }
+        }
+        is LaunchGameOperation.AccountRelogin -> {
+            val account = launchGameOperation.account
+            val message = if (account.isMicrosoftAccount()) {
+                stringResource(R.string.account_relogin_microsoft_message)
+            } else {
+                stringResource(R.string.account_relogin_password_message, account.username)
+            }
+            SimpleAlertDialog(
+                title = stringResource(R.string.account_relogin_title),
+                text = message,
+                confirmText = stringResource(R.string.account_relogin),
+                dismissText = stringResource(R.string.generic_cancel),
+                dismissByDialog = false,
+                onConfirm = {
+                    toAccountManageScreen(
+                        if (account.isMicrosoftAccount()) FirstLoginMenu.MICROSOFT
+                        else FirstLoginMenu.NORMAL
+                    )
+                    updateOperation(LaunchGameOperation.None)
+                },
+                onDismiss = { updateOperation(LaunchGameOperation.None) }
+            )
+        }
+        is LaunchGameOperation.AccountRefreshFailed -> {
+            val baseMessage = stringResource(R.string.account_refresh_failed_skip_message)
+            val errorMessage = launchGameOperation.th.localizedMessage
+                ?.takeIf { it.isNotBlank() }
+            val message = if (errorMessage != null) "$baseMessage\n\n$errorMessage" else baseMessage
+            SimpleAlertDialog(
+                title = stringResource(R.string.account_refresh_failed_title),
+                text = message,
+                confirmText = stringResource(R.string.account_refresh_failed_skip),
+                dismissText = stringResource(R.string.account_refresh_failed_retry),
+                dismissByDialog = false,
+                onConfirm = {
+                    updateOperation(
+                        LaunchGameOperation.RealLaunch(
+                            version = launchGameOperation.version,
+                            quickPlay = launchGameOperation.quickPlay,
+                            skipAccountRefresh = true
+                        )
+                    )
+                },
+                onDismiss = {
+                    updateOperation(
+                        LaunchGameOperation.TryLaunch(
+                            version = launchGameOperation.version,
+                            quickPlay = launchGameOperation.quickPlay
+                        )
+                    )
+                }
+            )
         }
         is LaunchGameOperation.RendererNoStoragePermission -> {
             LaunchedEffect(Unit) {
@@ -340,7 +409,8 @@ fun LaunchGameOperation(
                     version = version,
                     exitActivity = exitActivity,
                     waitForVulkanChecker = { waitForVulkanChecker(version) },
-                    submitError = submitError
+                    submitError = submitError,
+                    skipAccountRefresh = launchGameOperation.skipAccountRefresh
                 )
                 updateOperation(LaunchGameOperation.None)
             }
