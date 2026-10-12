@@ -94,7 +94,7 @@ sealed interface QuickPlay : Parcelable {
 
 /** MobileGlues 2.0.0 cannot compile Minecraft 26.3+ RenderPearl shaders reliably. */
 private fun needsMobileGluesVulkanWorkaround(renderer: RendererInterface, version: Version): Boolean =
-    renderer === MobileGluesRenderer &&
+    renderer.getUniqueIdentifier() == MobileGluesRenderer.getUniqueIdentifier() &&
             version.getVersionInfo()?.minecraftVersion?.isBiggerTo("26.2") == true
 
 sealed interface LaunchGameOperation {
@@ -385,6 +385,25 @@ fun LaunchGameOperation(
                 val rendererMaxVer = currentRenderer.getMaxMCVersion()
 
                 val mcVer = version.getVersionInfo()!!.minecraftVersion
+
+                // The official launcher does not ship MobileGlues; its bundled renderers do not
+                // hit MobileGlues 2.0's 26.3 shader failure. When this fork's MobileGlues renderer
+                // is selected for an affected version, switch only that version to native Vulkan
+                // before checking capabilities so it cannot silently continue on the known-broken
+                // OpenGL path.
+                val autoSwitchedMobileGluesToVulkan =
+                    needsMobileGluesVulkanWorkaround(currentRenderer, version) &&
+                            version.getGraphicsApi() != GraphicsApi.VULKAN
+                if (autoSwitchedMobileGluesToVulkan) {
+                    version.getVersionConfig().apply {
+                        graphicsApi = GraphicsApi.VULKAN
+                        save()
+                    }
+                    eventViewModel.sendToast(
+                        androidText(R.string.mobileglues_26_3_auto_vulkan),
+                        Toast.LENGTH_LONG
+                    )
+                }
 
                 // Follow upstream Zalith's Vulkan capability gate: a renderer's version
                 // limit is bypassed only after this device/driver passed the game's Vulkan profile.
