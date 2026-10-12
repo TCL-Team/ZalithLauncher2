@@ -165,7 +165,8 @@ object LaunchGame {
         if (!AllSettings.autoVulkanChecker.getValue()) return
 
         val api = version.getGraphicsApi()
-        if (api == GraphicsApi.OPENGL) return
+        // The launcher's default is DEFAULT_OPENGL, which must not wait for a Vulkan check.
+        if (api == GraphicsApi.OPENGL || api == GraphicsApi.DEFAULT_OPENGL) return
 
         //游戏可能使用Vulkan，检查版本是否为 26.2+
         val clientJar = version.getClientJar()

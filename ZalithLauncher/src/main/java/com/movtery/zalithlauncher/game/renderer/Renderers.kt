@@ -21,13 +21,10 @@ package com.movtery.zalithlauncher.game.renderer
 import com.movtery.zalithlauncher.game.renderer.renderers.FreedrenoRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.GL4ESRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.KopperZinkRenderer
-import com.movtery.zalithlauncher.game.renderer.renderers.MobileGluesRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.PanfrostRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.VirGLRenderer
-import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.utils.logging.Logger
-import java.io.File
 
 private const val TAG = "Renderers"
 
@@ -53,19 +50,7 @@ object Renderers {
         addRenderers(
             NGGL4ESRenderer,
             GL4ESRenderer,
-            KopperZinkRenderer
-        )
-
-        // Keep MobileGlues next to Zink in the picker, but only expose it on ABIs where the
-        // upstream native library was bundled into this launcher build.
-        val mobileGluesAvailable = runCatching {
-            File(PathManager.DIR_NATIVE_LIB, MobileGluesRenderer.getRendererLibrary()).isFile
-        }.getOrDefault(false)
-        if (mobileGluesAvailable) {
-            addRenderer(MobileGluesRenderer)
-        }
-
-        addRenderers(
+            KopperZinkRenderer,
             VirGLRenderer,
             FreedrenoRenderer,
             PanfrostRenderer

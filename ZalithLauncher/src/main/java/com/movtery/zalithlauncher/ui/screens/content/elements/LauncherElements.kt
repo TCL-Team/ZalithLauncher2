@@ -54,7 +54,6 @@ import com.movtery.zalithlauncher.game.plugin.natives.NativePluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
-import com.movtery.zalithlauncher.game.renderer.renderers.MobileGluesRenderer
 import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.game.version.installed.Version
@@ -92,8 +91,37 @@ sealed interface QuickPlay : Parcelable {
     data class Server(val serverAddress: String): QuickPlay
 }
 
-private fun shouldUseUpstreamRenderer(rendererId: String, minecraftVersion: String): Boolean =
-    rendererId == MobileGluesRenderer.getUniqueIdentifier() && minecraftVersion.isBiggerTo("26.2")
+private const val MOBILEGLUES_PLUGIN_ID = "com.fcl.plugin.mobileglues"
+
+/** Undo the temporary 26.3 renderer/backend overrides saved by earlier fork builds. */
+private fun restoreMobileGluesSettings(version: Version, minecraftVersion: String) {
+    if (!minecraftVersion.isBiggerTo("26.2")) return
+    if (RendererPluginManager.getRendererList().none { it.getUniqueIdentifier() == MOBILEGLUES_PLUGIN_ID }) return
+
+    val config = version.getVersionConfig()
+    var changed = false
+
+    // The short-lived NGGL4ES fallback wrote both values per version. Restore MobileGlues only
+    // when that exact fallback state is present and the real plugin is installed.
+    if (
+        config.renderer == NGGL4ESRenderer.getUniqueIdentifier() &&
+        config.graphicsApi == GraphicsApi.OPENGL
+    ) {
+        config.renderer = MOBILEGLUES_PLUGIN_ID
+        changed = true
+    }
+
+    // An earlier Vulkan workaround persisted this per-version backend even though MobileGlues is GL.
+    if (
+        version.getRenderer() == MOBILEGLUES_PLUGIN_ID &&
+        config.graphicsApi == GraphicsApi.VULKAN
+    ) {
+        config.graphicsApi = GraphicsApi.OPENGL
+        changed = true
+    }
+
+    if (changed) config.save()
+}
 
 sealed interface LaunchGameOperation {
     data object None : LaunchGameOperation
@@ -356,15 +384,7 @@ fun LaunchGameOperation(
 
                 val mcVer = version.getVersionInfo()!!.minecraftVersion
 
-                // Match official Zalith's default renderer for affected versions: its built-in
-                // NGGL4ES path is used instead of the fork-only MobileGlues renderer.
-                if (shouldUseUpstreamRenderer(version.getRenderer(), mcVer)) {
-                    version.getVersionConfig().apply {
-                        renderer = NGGL4ESRenderer.getUniqueIdentifier()
-                        graphicsApi = GraphicsApi.OPENGL
-                        save()
-                    }
-                }
+                restoreMobileGluesSettings(version, mcVer)
 
                 //开始检查渲染器的版本支持情况
                 Renderers.setCurrentRenderer(version.getRenderer())
