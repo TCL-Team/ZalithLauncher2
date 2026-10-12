@@ -79,7 +79,6 @@ fun DownloadModScreen(
         changeOperation = { operation = it },
         doInstall = { classes, version, gameVersions ->
             downloadSingleForVersions(
-                context = context,
                 version = version,
                 versions = gameVersions,
                 folder = classes.versionFolder.folderName,
@@ -87,9 +86,11 @@ fun DownloadModScreen(
             )
         },
         onDependencyClicked = { dep, classes ->
-            backStack.navigateTo(
-                NormalNavKey.DownloadAssets(dep.platform, dep.projectId, classes)
-            )
+            dep.projectId?.let { projectId ->
+                backStack.navigateTo(
+                    NormalNavKey.DownloadAssets(dep.platform, projectId, classes)
+                )
+            }
         },
         onDownloadAllDependencies = { deps, gameVersions, classes ->
             scope.launch {
@@ -142,7 +143,6 @@ fun DownloadModScreen(
             )
 
             downloadSingleForVersions(
-                context = context,
                 version = version,
                 versions = gameVersions,
                 folder = classes.versionFolder.folderName,

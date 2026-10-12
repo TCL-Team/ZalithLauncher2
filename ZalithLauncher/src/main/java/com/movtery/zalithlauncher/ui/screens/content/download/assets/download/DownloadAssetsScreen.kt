@@ -162,17 +162,20 @@ private class DownloadScreenViewModel(
                         val semaphore = Semaphore(8)
                         val jobs = dependencies.map { dependency ->
                             async {
+                                val dependencyProjectId = dependency.projectId
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: return@async
                                 semaphore.withPermit {
                                     cacheDependencyProject(
                                         platform = version.platform(),
-                                        projectId = dependency.projectId,
+                                        projectId = dependencyProjectId,
                                         onLoading = {
-                                            if (!loadingProjects.contains(dependency.projectId)) {
-                                                loadingProjects.add(dependency.projectId)
+                                            if (!loadingProjects.contains(dependencyProjectId)) {
+                                                loadingProjects.add(dependencyProjectId)
                                             }
                                         },
                                         onEnd = {
-                                            loadingProjects.remove(dependency.projectId)
+                                            loadingProjects.remove(dependencyProjectId)
                                         }
                                     )
                                 }
@@ -318,7 +321,9 @@ fun DownloadAssetsScreen(
                 onReload = { viewModel.getVersions() },
                 onItemClicked = { version ->
                     val deps = version.platformDependencies().mapNotNull { dep ->
-                        viewModel.cachedDependencyProject[dep.projectId]?.let { dep to it }
+                        dep.projectId?.let { projectId ->
+                            viewModel.cachedDependencyProject[projectId]?.let { dep to it }
+                        }
                     }
                     onItemClicked(key.classes, version, key.iconUrl, deps)
                 },

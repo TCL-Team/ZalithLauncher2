@@ -78,7 +78,6 @@ fun DownloadResourcePackScreen(
         changeOperation = { operation = it },
         doInstall = { classes, version, versions ->
             downloadSingleForVersions(
-                context = context,
                 version = version,
                 versions = versions,
                 folder = classes.versionFolder.folderName,
@@ -86,9 +85,11 @@ fun DownloadResourcePackScreen(
             )
         },
         onDependencyClicked = { dep, classes ->
-            backStack.navigateTo(
-                NormalNavKey.DownloadAssets(dep.platform, dep.projectId, classes)
-            )
+            dep.projectId?.let { projectId ->
+                backStack.navigateTo(
+                    NormalNavKey.DownloadAssets(dep.platform, projectId, classes)
+                )
+            }
         },
         onDownloadAllDependencies = { deps, gameVersions, classes ->
             scope.launch {

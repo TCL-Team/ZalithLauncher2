@@ -436,7 +436,7 @@ fun SearchAssetsScreen(
                 gameVersion = viewModel.searchFilter.gameVersion,
                 onGameVersionChange = {
                     viewModel.researchWithFilter(
-                        viewModel.searchFilter.copy(gameVersion = it)
+                        viewModel.searchFilter.copy(gameVersion = it.orEmpty())
                     )
                 },
                 sortField = viewModel.searchFilter.sortField,

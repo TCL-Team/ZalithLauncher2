@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -556,7 +557,9 @@ fun ProjectTitleHead(
     modifier: Modifier = Modifier,
     platform: Platform,
     title: String,
-    author: String?
+    author: String?,
+    classes: PlatformClasses? = null,
+    reserveAuthor: Boolean = false
 ) {
     //标题栏、作者栏、平台标签
     Row(
@@ -578,7 +581,7 @@ fun ProjectTitleHead(
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
             )
-            author?.let {
+            if (author != null) {
                 VerticalDivider(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -589,12 +592,15 @@ fun ProjectTitleHead(
                     modifier = Modifier
                         .weight(0.4f, fill = false)
                         .alpha(0.7f),
-                    text = stringResource(R.string.download_assets_result_authors, it),
+                    text = stringResource(R.string.download_assets_result_authors, author),
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1
                 )
+            } else if (reserveAuthor) {
+                Spacer(modifier = Modifier.weight(0.4f))
             }
         }
+        classes?.let { ClassesIdentifier(classes = it) }
         //平台标签
         PlatformIdentifier(platform = platform)
     }
