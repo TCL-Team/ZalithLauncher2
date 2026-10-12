@@ -64,29 +64,27 @@ jobs:
             build_status=${PIPESTATUS[0]}
             diagnostic_file="$RUNNER_TEMP/gradle-diagnostics.txt"
             {
-              grep -E '(^e:|^error:|^FAILURE:|^\* What went wrong:|^> |Execution failed for task|Could not resolve|Could not retrieve|Unresolved reference|Type mismatch|\.java:[0-9]+: error:|\[MobileGlues\]|GitHub returned|failed its|no cached|Caused by:|Exception|HTTP [0-9])' "$log_file" || true
-              echo '--- final log lines ---'
-              tail -n 25 "$log_file"
-            } | tail -n 60 > "$diagnostic_file"
-            {
               echo "Gradle process exit status: $build_status"
               if [[ -r /sys/fs/cgroup/memory.events ]]; then
-                echo '--- cgroup memory events ---'
+                echo 'cgroup memory events:'
                 cat /sys/fs/cgroup/memory.events
               fi
-            } >> "$diagnostic_file"
+              echo '--- matched diagnostics ---'
+              grep -E '(^e:|^error:|^FAILURE:|^\* What went wrong:|^> |Execution failed for task|Could not resolve|Could not retrieve|Unresolved reference|Type mismatch|\.java:[0-9]+: error:|\[MobileGlues\]|GitHub returned|failed its|no cached|Caused by:|Exception|HTTP [0-9])' "$log_file" | tail -n 30 || true
+              echo '--- final log lines ---'
+              tail -n 25 "$log_file"
+            } > "$diagnostic_file"
             {
               echo '### Gradle build diagnostics'
               echo '```text'
               cat "$diagnostic_file"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            while IFS= read -r line; do
-              line=${line//'%'/'%25'}
-              line=${line//$'\r'/'%0D'}
-              line=${line//$'\n'/'%0A'}
-              printf '::error title=Gradle build diagnostic::%s\n' "$line"
-            done < "$diagnostic_file"
+            diagnostics=$(cat "$diagnostic_file")
+            diagnostics=${diagnostics//'%'/'%25'}
+            diagnostics=${diagnostics//$'\r'/'%0D'}
+            diagnostics=${diagnostics//$'\n'/'%0A'}
+            printf '::error title=Gradle build diagnostic::%s\n' "$diagnostics"
             exit "$build_status"
           fi
 
