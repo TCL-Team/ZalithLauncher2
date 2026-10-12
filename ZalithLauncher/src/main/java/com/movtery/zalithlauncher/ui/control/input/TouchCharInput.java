@@ -9,11 +9,15 @@ import android.view.inputmethod.InputMethodManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.lang.ref.WeakReference;
+
 /**
  * [From PojavLauncher](https://github.com/PojavLauncherTeam/PojavLauncher/blob/v3_openjdk/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/customcontrols/keyboard/TouchCharInput.java)
  * This class is intended for sending characters used in chat via the virtual keyboard
  */
 public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText {
+    private static WeakReference<TouchCharInput> sActiveInput = new WeakReference<>(null);
+
     public static final String TEXT_FILLER = "                              ";
     public TouchCharInput(@NonNull Context context) {
         this(context, null);
@@ -32,9 +36,27 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
 
     public void enableKeyboard() {
         InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+        sActiveInput = new WeakReference<>(this);
         enable();
-        imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
+        if (imm != null) {
+            imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
+        }
         clear();
+    }
+
+    /**
+     * Stop the launcher input field from competing with SDL when the game requests its IME.
+     */
+    public static void disableActiveInput() {
+        TouchCharInput input = sActiveInput.get();
+        sActiveInput.clear();
+        if (input == null) {
+            return;
+        }
+        input.clearFocus();
+        input.setFocusable(false);
+        input.setFocusableInTouchMode(false);
+        input.setEnabled(false);
     }
 
     /**
@@ -72,6 +94,14 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
         });
         enable();
         clear();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        if (sActiveInput.get() == this) {
+            sActiveInput.clear();
+        }
+        super.onDetachedFromWindow();
     }
 
     /**
