@@ -150,8 +150,8 @@ private class UpdateLoaderViewModel: ViewModel() {
     ) {
         installOperation = UpdateLoaderOperation.Install
         installer = GameInstaller(context, info, viewModelScope).also {
-            it.updateLoader(
-                onInstalled = {
+            it.modifyVersion(
+                onModified = {
                     installer = null
                     installOperation = UpdateLoaderOperation.None
 
