@@ -18,6 +18,9 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -102,6 +105,8 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSett
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.utils.device.checkVulkanSupport
 import com.movtery.zalithlauncher.utils.isAdrenoGPU
+import com.movtery.zalithlauncher.utils.checkStoragePermissions
+import com.movtery.zalithlauncher.utils.hasStoragePermission
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.sendDLPlugin
 
@@ -208,7 +213,27 @@ fun RendererSettingsScreen(
                         },
                         getItemTrailing = { renderer ->
                             if (renderer.getRendererName() == "MobileGlues") {
-                                IconButton(onClick = { showMobileGluesSettings = true }) {
+                                IconButton(
+                                    onClick = {
+                                        val activity = context.findActivity()
+                                        if (activity == null || hasStoragePermission) {
+                                            showMobileGluesSettings = true
+                                        } else {
+                                            checkStoragePermissions(
+                                                activity = activity,
+                                                message = activity.getString(
+                                                    R.string.renderer_version_storage_permissions,
+                                                    renderer.getRendererName()
+                                                ),
+                                                messageSdk30 = activity.getString(
+                                                    R.string.renderer_version_storage_permissions_sdk30,
+                                                    renderer.getRendererName()
+                                                ),
+                                                hasPermission = { showMobileGluesSettings = true }
+                                            )
+                                        }
+                                    }
+                                ) {
                                     Icon(
                                         painter = painterResource(R.drawable.ic_settings_filled),
                                         contentDescription = stringResource(R.string.generic_setting)
@@ -574,6 +599,12 @@ fun DriverSummaryLayout(driver: Driver) {
             )
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 @Composable

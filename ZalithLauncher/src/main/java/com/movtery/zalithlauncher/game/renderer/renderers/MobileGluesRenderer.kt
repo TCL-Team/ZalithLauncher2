@@ -33,8 +33,12 @@ object MobileGluesRenderer : RendererInterface {
 
     override fun getMinMCVersion(): String = "1.17"
 
-    // Keep the upstream compatibility floor for launch validation, but show the requested
-    // current support baseline in the renderer picker (>= 26.2).
+    // MobileGlues 2.0.0 has a known shader compiler failure with the 26.3 RenderPearl pipeline.
+    // Keep OpenGL launches on the last confirmed compatible release while allowing a native
+    // Vulkan backend to bypass this renderer limit for that version.
+    override fun getMaxMCVersion(): String = "26.2"
+
+    // Keep the current support baseline visible in the renderer picker.
     override fun getDisplayMinMCVersion(): String = "26.2"
 
     override fun getRendererEnv(): Lazy<Map<String, String>> = lazy {

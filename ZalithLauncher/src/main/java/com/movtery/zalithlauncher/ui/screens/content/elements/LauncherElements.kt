@@ -55,6 +55,8 @@ import com.movtery.zalithlauncher.game.plugin.natives.NativePluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
+import com.movtery.zalithlauncher.game.renderer.renderers.MobileGluesRenderer
+import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.launcherMMKV
@@ -89,6 +91,11 @@ sealed interface QuickPlay : Parcelable {
     @Parcelize
     data class Server(val serverAddress: String): QuickPlay
 }
+
+/** MobileGlues 2.0.0 cannot compile Minecraft 26.3+ RenderPearl shaders reliably. */
+private fun needsMobileGluesVulkanWorkaround(renderer: RendererInterface, version: Version): Boolean =
+    renderer === MobileGluesRenderer &&
+            version.getVersionInfo()?.minecraftVersion?.isBiggerTo("26.2") == true
 
 sealed interface LaunchGameOperation {
     data object None : LaunchGameOperation
@@ -269,11 +276,26 @@ fun LaunchGameOperation(
             val renderer = launchGameOperation.renderer
             val version = launchGameOperation.version
             val quickPlay = launchGameOperation.quickPlay
+            val switchMobileGluesToVulkan = needsMobileGluesVulkanWorkaround(renderer, version)
             SimpleAlertDialog(
                 title = stringResource(R.string.generic_warning),
-                text = stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName()),
-                confirmText = stringResource(R.string.generic_anyway),
+                text = if (switchMobileGluesToVulkan) {
+                    stringResource(R.string.mobileglues_26_3_shader_issue)
+                } else {
+                    stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName())
+                },
+                confirmText = if (switchMobileGluesToVulkan) {
+                    stringResource(R.string.mobileglues_switch_this_version_to_vulkan)
+                } else {
+                    stringResource(R.string.generic_anyway)
+                },
                 onConfirm = {
+                    if (switchMobileGluesToVulkan) {
+                        version.getVersionConfig().apply {
+                            graphicsApi = GraphicsApi.VULKAN
+                            save()
+                        }
+                    }
                     updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
                 },
                 onDismiss = {
@@ -356,9 +378,13 @@ fun LaunchGameOperation(
 
                 val mcVer = version.getVersionInfo()!!.minecraftVersion
 
-                val isRendererUnsupported =
+                val usingNativeVulkanForKnownMobileGluesIssue =
+                    needsMobileGluesVulkanWorkaround(currentRenderer, version) &&
+                            version.getGraphicsApi() == GraphicsApi.VULKAN
+                val isRendererUnsupported = !usingNativeVulkanForKnownMobileGluesIssue && (
                     (rendererMinVer?.let { mcVer.isLowerTo(it) } ?: false) ||
                             (rendererMaxVer?.let { mcVer.isBiggerTo(it) } ?: false)
+                )
 
                 if (isRendererUnsupported) {
                     updateOperation(LaunchGameOperation.UnsupportedRenderer(currentRenderer, version, quickPlay))
