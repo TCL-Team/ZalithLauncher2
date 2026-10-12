@@ -24,7 +24,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Parcelable
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -56,6 +55,7 @@ import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.renderer.renderers.MobileGluesRenderer
+import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.setting.AllSettings
@@ -92,10 +92,8 @@ sealed interface QuickPlay : Parcelable {
     data class Server(val serverAddress: String): QuickPlay
 }
 
-/** MobileGlues 2.0.0 cannot compile Minecraft 26.3+ RenderPearl shaders reliably. */
-private fun needsMobileGluesVulkanWorkaround(renderer: RendererInterface, version: Version): Boolean =
-    renderer.getUniqueIdentifier() == MobileGluesRenderer.getUniqueIdentifier() &&
-            version.getVersionInfo()?.minecraftVersion?.isBiggerTo("26.2") == true
+private fun shouldUseUpstreamRenderer(rendererId: String, minecraftVersion: String): Boolean =
+    rendererId == MobileGluesRenderer.getUniqueIdentifier() && minecraftVersion.isBiggerTo("26.2")
 
 sealed interface LaunchGameOperation {
     data object None : LaunchGameOperation
@@ -277,34 +275,12 @@ fun LaunchGameOperation(
             val renderer = launchGameOperation.renderer
             val version = launchGameOperation.version
             val quickPlay = launchGameOperation.quickPlay
-            val hasMobileGluesVulkanWorkaround = needsMobileGluesVulkanWorkaround(renderer, version)
-            val switchMobileGluesToVulkan =
-                hasMobileGluesVulkanWorkaround && version.getGraphicsApi() != GraphicsApi.VULKAN
-            val vulkanCheckFailed =
-                hasMobileGluesVulkanWorkaround && version.getGraphicsApi() == GraphicsApi.VULKAN
             SimpleAlertDialog(
                 title = stringResource(R.string.generic_warning),
-                text = when {
-                    switchMobileGluesToVulkan -> stringResource(R.string.mobileglues_26_3_shader_issue)
-                    vulkanCheckFailed -> stringResource(R.string.mobileglues_vulkan_check_failed)
-                    else -> stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName())
-                },
-                confirmText = if (switchMobileGluesToVulkan) {
-                    stringResource(R.string.mobileglues_switch_this_version_to_vulkan)
-                } else {
-                    stringResource(R.string.generic_anyway)
-                },
+                text = stringResource(R.string.renderer_version_unsupported_warning, renderer.getRendererName()),
+                confirmText = stringResource(R.string.generic_anyway),
                 onConfirm = {
-                    if (switchMobileGluesToVulkan) {
-                        version.getVersionConfig().apply {
-                            graphicsApi = GraphicsApi.VULKAN
-                            save()
-                        }
-                        // Re-run pre-launch checks with the new per-version backend choice.
-                        updateOperation(LaunchGameOperation.TryLaunch(version, quickPlay))
-                    } else {
-                        updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
-                    }
+                    updateOperation(LaunchGameOperation.RealLaunch(version, quickPlay))
                 },
                 onDismiss = {
                     updateOperation(LaunchGameOperation.None)
@@ -378,32 +354,23 @@ fun LaunchGameOperation(
                     return@LaunchedEffect
                 }
 
+                val mcVer = version.getVersionInfo()!!.minecraftVersion
+
+                // Match official Zalith's default renderer for affected versions: its built-in
+                // NGGL4ES path is used instead of the fork-only MobileGlues renderer.
+                if (shouldUseUpstreamRenderer(version.getRenderer(), mcVer)) {
+                    version.getVersionConfig().apply {
+                        renderer = NGGL4ESRenderer.getUniqueIdentifier()
+                        graphicsApi = GraphicsApi.OPENGL
+                        save()
+                    }
+                }
+
                 //开始检查渲染器的版本支持情况
                 Renderers.setCurrentRenderer(version.getRenderer())
                 val currentRenderer = Renderers.getCurrentRenderer()
                 val rendererMinVer = currentRenderer.getMinMCVersion()
                 val rendererMaxVer = currentRenderer.getMaxMCVersion()
-
-                val mcVer = version.getVersionInfo()!!.minecraftVersion
-
-                // The official launcher does not ship MobileGlues; its bundled renderers do not
-                // hit MobileGlues 2.0's 26.3 shader failure. When this fork's MobileGlues renderer
-                // is selected for an affected version, switch only that version to native Vulkan
-                // before checking capabilities so it cannot silently continue on the known-broken
-                // OpenGL path.
-                val autoSwitchedMobileGluesToVulkan =
-                    needsMobileGluesVulkanWorkaround(currentRenderer, version) &&
-                            version.getGraphicsApi() != GraphicsApi.VULKAN
-                if (autoSwitchedMobileGluesToVulkan) {
-                    version.getVersionConfig().apply {
-                        graphicsApi = GraphicsApi.VULKAN
-                        save()
-                    }
-                    eventViewModel.sendToast(
-                        androidText(R.string.mobileglues_26_3_auto_vulkan),
-                        Toast.LENGTH_LONG
-                    )
-                }
 
                 // Follow upstream Zalith's Vulkan capability gate: a renderer's version
                 // limit is bypassed only after this device/driver passed the game's Vulkan profile.
