@@ -127,6 +127,16 @@ class GameInstaller(
         onError: (th: Throwable) -> Unit,
         onGameAlreadyInstalled: () -> Unit
     ) {
+        if (info.overwrite) {
+            //覆盖已有版本时使用原子替换流程，保留原目录内容并在失败时还原 Json/Jar。
+            modifyVersion(
+                isRunning = isRunning,
+                onModified = { onInstalled(info.customVersionName) },
+                onError = onError
+            )
+            return
+        }
+
         if (taskExecutor.isRunning()) {
             //正在安装中，阻止这次安装请求
             isRunning()
@@ -612,7 +622,8 @@ class GameInstaller(
     ) {
         taskExecutor.cancel()
 
-        if (clearTarget) {
+        if (clearTarget && !info.overwrite) {
+            //覆盖安装保留已有版本目录；其 Json/Jar 仅在最终任务中原子替换。
             clearTargetClient()
         }
 

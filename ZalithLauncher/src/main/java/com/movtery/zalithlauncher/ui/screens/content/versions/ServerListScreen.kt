@@ -1102,7 +1102,7 @@ private fun ServerIcon(
  * 服务器描述文本渲染，尝试模仿 Minecraft 原版对于 Component 文本组件的渲染
  */
 @Composable
-private fun DescriptionTextRender(
+internal fun DescriptionTextRender(
     description: ServerDescription,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = TextUnit.Unspecified,

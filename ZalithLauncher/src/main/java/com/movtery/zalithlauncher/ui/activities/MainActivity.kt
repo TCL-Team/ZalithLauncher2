@@ -515,7 +515,7 @@ class MainActivity : BaseAppCompatActivity() {
      * 检查设备 Vulkan 支持情况
      */
     private suspend fun checkVulkan() {
-        val driver = DriverPluginManager.getDriver()
+        val driver = DriverPluginManager.getDriver(AllSettings.vulkanDriver.getValue())
         val useTurnip = !(AllSettings.zinkPreferSystemDriver.getValue() || driver.isLauncher)
 
         withContext(Dispatchers.Main) {
