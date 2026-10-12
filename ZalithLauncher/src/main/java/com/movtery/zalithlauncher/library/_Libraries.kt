@@ -68,7 +68,6 @@ val libraryData = listOf(
     LibraryInfo("Maven Artifact", "Copyright © The Apache Software Foundation", LICENSE_APACHE_2, "https://github.com/apache/maven/tree/maven-3.9.9/maven-artifact"),
     LibraryInfo("Media3", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/media3"),
     LibraryInfo("Mesa", "Copyright © The Mesa Authors", License(LICENSE_MIT, R.raw.mesa_license), "https://mesa3d.org/"),
-    LibraryInfo("MobileGlues", "Copyright © 2025-2026 MobileGL-Dev", License(LICENSE_LGPL_2_1, R.raw.sora_editor_license), "https://github.com/MobileGL-Dev/MobileGlues"),
     LibraryInfo("MMKV", "Copyright © 2018 THL A29 Limited, a Tencent company.", License(LICENSE_BSD_3_CLAUSE, R.raw.mmkv_license), "https://github.com/Tencent/MMKV"),
     LibraryInfo("Navigation 3", COPYRIGHT_AOSP, LICENSE_APACHE_2, "https://developer.android.com/jetpack/androidx/releases/navigation3"),
     LibraryInfo("NG-GL4ES", "Copyright © 2016-2018 Sebastien Chevalier; Copyright © 2013-2016 Ryan Hileman; Copyright © 2025-2026 BZLZHH", License(LICENSE_MIT, R.raw.ng_gl4es_license), "https://github.com/BZLZHH/NG-GL4ES"),

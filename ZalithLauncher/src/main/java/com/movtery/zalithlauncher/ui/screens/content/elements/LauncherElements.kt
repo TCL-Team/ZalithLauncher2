@@ -54,8 +54,6 @@ import com.movtery.zalithlauncher.game.plugin.natives.NativePluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
-import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
-import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.hasVulkanBackend
 import com.movtery.zalithlauncher.game.version.installed.utils.isBiggerVer
@@ -72,7 +70,6 @@ import com.movtery.zalithlauncher.utils.checkStoragePermissions
 import com.movtery.zalithlauncher.utils.file.InvalidFilenameException
 import com.movtery.zalithlauncher.utils.file.checkFilenameValidity
 import com.movtery.zalithlauncher.utils.hasStoragePermission
-import com.movtery.zalithlauncher.utils.string.isBiggerTo
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
@@ -91,38 +88,6 @@ sealed interface QuickPlay : Parcelable {
     /** 快速启动游玩服务器 */
     @Parcelize
     data class Server(val serverAddress: String): QuickPlay
-}
-
-private const val MOBILEGLUES_PLUGIN_ID = "com.fcl.plugin.mobileglues"
-
-/** Undo the temporary 26.3 renderer/backend overrides saved by earlier fork builds. */
-private fun restoreMobileGluesSettings(version: Version, minecraftVersion: String) {
-    if (!minecraftVersion.isBiggerTo("26.2")) return
-    if (RendererPluginManager.getRendererList().none { it.getUniqueIdentifier() == MOBILEGLUES_PLUGIN_ID }) return
-
-    val config = version.getVersionConfig()
-    var changed = false
-
-    // The short-lived NGGL4ES fallback wrote both values per version. Restore MobileGlues only
-    // when that exact fallback state is present and the real plugin is installed.
-    if (
-        config.renderer == NGGL4ESRenderer.getUniqueIdentifier() &&
-        config.graphicsApi == GraphicsApi.OPENGL
-    ) {
-        config.renderer = MOBILEGLUES_PLUGIN_ID
-        changed = true
-    }
-
-    // An earlier Vulkan workaround persisted this per-version backend even though MobileGlues is GL.
-    if (
-        version.getRenderer() == MOBILEGLUES_PLUGIN_ID &&
-        config.graphicsApi == GraphicsApi.VULKAN
-    ) {
-        config.graphicsApi = GraphicsApi.OPENGL
-        changed = true
-    }
-
-    if (changed) config.save()
 }
 
 sealed interface LaunchGameOperation {
@@ -384,8 +349,6 @@ fun LaunchGameOperation(
                 }
 
                 val mcVer = version.getVersionInfo()!!.minecraftVersion
-
-                restoreMobileGluesSettings(version, mcVer)
 
                 //开始检查渲染器的版本支持情况
                 Renderers.setCurrentRenderer(version.getRenderer())

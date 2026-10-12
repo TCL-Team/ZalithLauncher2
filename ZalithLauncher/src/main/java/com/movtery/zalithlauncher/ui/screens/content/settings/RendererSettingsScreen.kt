@@ -18,9 +18,6 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -89,7 +86,6 @@ import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.unit.floatRange
 import com.movtery.zalithlauncher.ui.base.BaseScreen
-import com.movtery.zalithlauncher.utils.settings.MobileGluesConfig
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
@@ -105,8 +101,6 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSett
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.utils.device.checkVulkanSupport
 import com.movtery.zalithlauncher.utils.isAdrenoGPU
-import com.movtery.zalithlauncher.utils.checkStoragePermissions
-import com.movtery.zalithlauncher.utils.hasStoragePermission
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.sendDLPlugin
 
@@ -121,14 +115,8 @@ fun RendererSettingsScreen(
         Triple(key, mainScreenKey, false),
         Triple(NormalNavKey.Settings.Renderer, settingsScreenKey, false)
     ) { isVisible ->
-        val context = LocalContext.current
-        var showMobileGluesSettings by remember { mutableStateOf(false) }
         var showBenchmark by remember { mutableStateOf(false) }
         var driverToDelete by remember { mutableStateOf<Driver?>(null) }
-
-        if (showMobileGluesSettings) {
-            MobileGluesSettingsDialog(onDismissRequest = { showMobileGluesSettings = false })
-        }
 
         if (showBenchmark) {
             Dialog(
@@ -196,50 +184,8 @@ fun RendererSettingsScreen(
                         summary = stringResource(R.string.settings_renderer_global_renderer_summary),
                         getItemText = { it.getRendererName() },
                         getItemId = { it.getUniqueIdentifier() },
-                        getItemSummary = { renderer ->
-                            Column {
-                                RendererSummaryLayout(renderer)
-                                if (renderer.getRendererName() == "MobileGlues") {
-                                    val hasConfig = remember { MobileGluesConfig.load() != null }
-                                    if (hasConfig) {
-                                        Text(
-                                            text = "✓ Configured",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        getItemTrailing = { renderer ->
-                            if (renderer.getRendererName() == "MobileGlues") {
-                                IconButton(
-                                    onClick = {
-                                        val activity = context.findActivity()
-                                        if (activity == null || hasStoragePermission) {
-                                            showMobileGluesSettings = true
-                                        } else {
-                                            checkStoragePermissions(
-                                                activity = activity,
-                                                message = activity.getString(
-                                                    R.string.renderer_version_storage_permissions,
-                                                    renderer.getRendererName()
-                                                ),
-                                                messageSdk30 = activity.getString(
-                                                    R.string.renderer_version_storage_permissions_sdk30,
-                                                    renderer.getRendererName()
-                                                ),
-                                                hasPermission = { showMobileGluesSettings = true }
-                                            )
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_settings_filled),
-                                        contentDescription = stringResource(R.string.generic_setting)
-                                    )
-                                }
-                            }
+                        getItemSummary = {
+                            RendererSummaryLayout(it)
                         },
                         trailingIcon = {
                             //选中新一代渲染器插件且存在可配置项时，提供配置入口
@@ -599,12 +545,6 @@ fun DriverSummaryLayout(driver: Driver) {
             )
         }
     }
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
 @Composable
