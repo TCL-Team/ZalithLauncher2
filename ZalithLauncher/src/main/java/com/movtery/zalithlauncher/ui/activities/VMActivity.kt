@@ -19,6 +19,7 @@
 package com.movtery.zalithlauncher.ui.activities
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -430,6 +431,9 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
             }
         )
 
+        @Suppress("DEPRECATION")
+        setTaskDescription(ActivityManager.TaskDescription(vmViewModel.session.activityTitle))
+
         //设置画面渲染输出回调
         CallbackBridge.setGraphicOutputListener {
             withHandler { onGraphicOutput() }
@@ -558,12 +562,6 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                 }
             }
         }
-    }
-
-    override fun getTaskDescriptionTitle(): String? {
-        return runCatching {
-            vmViewModel.session.activityTitle
-        }.getOrNull()
     }
 
     override fun onResume() {

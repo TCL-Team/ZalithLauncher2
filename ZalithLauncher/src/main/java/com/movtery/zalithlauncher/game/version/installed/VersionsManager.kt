@@ -217,6 +217,9 @@ object VersionsManager {
         _currentVersion.update { version }
     }
 
+    /** Find a valid installed version by its folder name. */
+    fun getVersion(name: String?): Version? = _versions.value.getVersion(name)
+
     private fun List<Version>.getVersion(name: String?): Version? {
         name?.let { versionName ->
             return find { it.getVersionName() == versionName }?.takeIf { it.isValid() }

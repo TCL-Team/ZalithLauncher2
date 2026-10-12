@@ -112,6 +112,8 @@ class EventViewModel : ViewModel() {
         sealed interface LogShare : Event {
             data class ShareGameLog(val logFile: File) : LogShare
         }
+        /** Open an imported game log in the log viewer. */
+        data class OpenLog(val path: String) : Event
         /** 启动器主页相关 */
         sealed interface HomePage : Event {
             data object Reload : HomePage
