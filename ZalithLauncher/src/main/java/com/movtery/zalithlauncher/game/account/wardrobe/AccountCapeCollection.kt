@@ -33,6 +33,8 @@ object AccountCapeCollection {
     private fun getManifestFile(accountUUID: String): File =
         File(getCollectionDir(accountUUID), "capes.json")
 
+    fun hasManifest(accountUUID: String): Boolean = getManifestFile(accountUUID).isFile
+
     private fun getCapeTextureFile(accountUUID: String, entry: CapeEntry): File =
         File(getCollectionDir(accountUUID), "${entry.id}.${entry.ext}")
 
