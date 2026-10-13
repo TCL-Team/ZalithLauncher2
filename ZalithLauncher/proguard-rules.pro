@@ -65,3 +65,7 @@
 -keepclassmembers enum * {
     *;
 }
+
+# Flexmark's dependency resolver uses each Dependent implementation's concrete class as its key.
+# Prevent R8 from merging these classes in minified Release builds.
+-keep class * implements com.vladsch.flexmark.util.dependency.Dependent { *; }
