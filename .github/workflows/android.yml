@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - arena/9c8400a9-zalithlauncher2
 
 permissions:
   contents: write
