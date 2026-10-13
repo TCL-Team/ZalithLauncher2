@@ -66,6 +66,11 @@
     *;
 }
 
-# Flexmark's dependency resolver uses each Dependent implementation's concrete class as its key.
-# Prevent R8 from merging these classes in minified Release builds.
+# Flexmark's dependency resolver uses concrete implementation classes as keys.
+# Keep Dependent implementations from R8 class merging in minified Release builds.
 -keep class * implements com.vladsch.flexmark.util.dependency.Dependent { *; }
+
+# HtmlRenderer and FlexmarkHtmlConverter key node renderers by factory.getClass();
+# their factory interfaces do not extend Dependent, so retain those classes separately.
+-keep class * implements com.vladsch.flexmark.html.renderer.NodeRendererFactory { *; }
+-keep class * implements com.vladsch.flexmark.html2md.converter.HtmlNodeRendererFactory { *; }
