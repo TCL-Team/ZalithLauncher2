@@ -59,3 +59,9 @@
 
 # SoraEditor language-textmate
 -keep class org.jcodings.** { *; }
+
+# Enum names are persisted and parsed by name in settings, Room, and serializers.
+# Keep enum constants stable across minified release builds and upgrades.
+-keepclassmembers enum * {
+    *;
+}
