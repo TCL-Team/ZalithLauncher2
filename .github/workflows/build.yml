@@ -10,7 +10,7 @@ on:
         options:
           - Debug
           - Release
-        default: Debug
+        default: Release
   workflow_call:
     inputs:
       variant:
