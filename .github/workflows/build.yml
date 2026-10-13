@@ -68,10 +68,6 @@ jobs:
           chmod +x gradlew
           log_file="$RUNNER_TEMP/gradle-build.log"
           gradle_args=(--max-workers=1 -Pkotlin.compiler.execution.strategy=in-process "ZalithLauncher:assemble${{ inputs.variant }}" "-Darch=${{ matrix.arch }}" --console=plain --stacktrace)
-          if [[ "${{ inputs.variant }}" == "Release" ]]; then
-            # Release lintVital analysis has stalled/crashed the CI daemon before APK packaging.
-            gradle_args+=(-x lintVitalAnalyzeRelease)
-          fi
           if ./gradlew "${gradle_args[@]}" 2>&1 | tee "$log_file"; then
             exit 0
           else
