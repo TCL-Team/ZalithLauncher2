@@ -53,7 +53,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "GameRecorder"
 private const val FRAME_RATE = 30
-private const val VIDEO_BIT_RATE = 8_000_000 // 8 Mbps
+private const val MIN_VIDEO_BIT_RATE = 8_000_000L
+private const val MAX_VIDEO_BIT_RATE = 24_000_000L
+private const val VIDEO_BITS_PER_PIXEL_PER_FRAME = 0.20 // ~12 Mbps at 1080p30
 private const val MAX_VIDEO_DIMENSION = 2560
 private const val RECORDINGS_RELATIVE_PATH = "Movies/ZalithLauncher/Recordings"
 
@@ -93,6 +95,7 @@ object GameRecorder {
             return false
         }
         val (width, height) = getRecordingSize(view.width, view.height)
+        val videoBitRate = getVideoBitRate(width, height)
         recordingWidth = width
         recordingHeight = height
 
@@ -122,7 +125,7 @@ object GameRecorder {
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
                 setVideoSize(width, height)
                 setVideoFrameRate(FRAME_RATE)
-                setVideoEncodingBitRate(VIDEO_BIT_RATE)
+                setVideoEncodingBitRate(videoBitRate)
                 setOutputFile(descriptor.fileDescriptor)
                 setOnErrorListener { _, what, extra ->
                     Log.e(TAG, "MediaRecorder error what=$what extra=$extra")
@@ -146,7 +149,7 @@ object GameRecorder {
             startTimerTick()
             scheduleNextFrame()
 
-            Log.i(TAG, "Recording started ${width}x${height} mic=$withMic")
+            Log.i(TAG, "Recording started ${width}x${height} bitrate=${videoBitRate / 1_000_000}Mbps mic=$withMic")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start recording", e)
@@ -294,6 +297,15 @@ object GameRecorder {
         val width = ((safeWidth * scale).toInt().coerceAtLeast(2) / 2) * 2
         val height = ((safeHeight * scale).toInt().coerceAtLeast(2) / 2) * 2
         return width to height
+    }
+
+    private fun getVideoBitRate(width: Int, height: Int): Int {
+        val targetBitRate = (
+            width.toLong() * height.toLong() * FRAME_RATE * VIDEO_BITS_PER_PIXEL_PER_FRAME
+        ).toLong()
+        return targetBitRate
+            .coerceIn(MIN_VIDEO_BIT_RATE, MAX_VIDEO_BIT_RATE)
+            .toInt()
     }
 
     private fun finalise(context: Context) {
