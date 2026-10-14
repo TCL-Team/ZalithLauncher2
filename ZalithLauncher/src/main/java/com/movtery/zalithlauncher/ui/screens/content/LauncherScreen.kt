@@ -159,6 +159,8 @@ fun LauncherScreen(
             onDismissRequest = { performanceSettingsState = PerformanceSettingsOperation.None }
         )
 
+        val wideDashboard = LocalConfiguration.current.screenWidthDp >= 760
+
         Row(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -183,23 +185,6 @@ fun LauncherScreen(
                 }
             )
 
-            CompositionLocalProvider(
-                LocalUriHandler provides object : UriHandler {
-                    override fun openUri(uri: String) {
-                        onOpenLink(uri)
-                    }
-                }
-            ) {
-                ContentMenu(
-                    modifier = Modifier.weight(7f),
-                    isVisible = isVisible,
-                    onHomePageEvent = onHomePageEvent,
-                    onNavigateToStats = onNavigateToStats,
-                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-                    onNavigateToLog = onNavigateToLog
-                )
-            }
-
             val toAccountManageScreen: () -> Unit = {
                 backStackViewModel.mainScreen.navigateTo(
                     screenKey = NormalNavKey.AccountManager(FirstLoginMenu.NONE)
@@ -216,17 +201,42 @@ fun LauncherScreen(
                     navigateToVersions(version)
                 }
             }
-            RightMenu(
-                isVisible = isVisible,
-                modifier = Modifier
-                    .weight(3f)
-                    .fillMaxHeight()
-                    .padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
-                onLaunchGame = onLaunchGame,
-                toAccountManageScreen = toAccountManageScreen,
-                toVersionManageScreen = toVersionManageScreen,
-                toVersionSettingsScreen = toVersionSettingsScreen,
-            )
+
+            CompositionLocalProvider(
+                LocalUriHandler provides object : UriHandler {
+                    override fun openUri(uri: String) {
+                        onOpenLink(uri)
+                    }
+                }
+            ) {
+                ContentMenu(
+                    modifier = Modifier.weight(if (wideDashboard) 1f else 7f),
+                    isVisible = isVisible,
+                    wideDashboard = wideDashboard,
+                    onHomePageEvent = onHomePageEvent,
+                    onNavigateToStats = onNavigateToStats,
+                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
+                    onNavigateToLog = onNavigateToLog,
+                    onLaunchGame = onLaunchGame,
+                    toAccountManageScreen = toAccountManageScreen,
+                    toVersionManageScreen = toVersionManageScreen,
+                    toVersionSettingsScreen = toVersionSettingsScreen
+                )
+            }
+
+            if (!wideDashboard) {
+                RightMenu(
+                    isVisible = isVisible,
+                    modifier = Modifier
+                        .weight(3f)
+                        .fillMaxHeight()
+                        .padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
+                    onLaunchGame = onLaunchGame,
+                    toAccountManageScreen = toAccountManageScreen,
+                    toVersionManageScreen = toVersionManageScreen,
+                    toVersionSettingsScreen = toVersionSettingsScreen,
+                )
+            }
         }
     }
 }
@@ -235,10 +245,15 @@ fun LauncherScreen(
 @Composable
 private fun ContentMenu(
     isVisible: Boolean,
+    wideDashboard: Boolean,
     onHomePageEvent: (MarkdownBlock.Button.Event) -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToPlayTimeStats: () -> Unit = {},
     onNavigateToLog: (String) -> Unit,
+    onLaunchGame: (Version?) -> Unit,
+    toAccountManageScreen: () -> Unit,
+    toVersionManageScreen: () -> Unit,
+    toVersionSettingsScreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val yOffset by swapAnimateDpAsState(
@@ -248,6 +263,8 @@ private fun ContentMenu(
 
     val homePageViewModel = LocalHomePageViewModel.current
     val pageState by homePageViewModel.pageState.collectAsStateWithLifecycle()
+    val versions by VersionsManager.versions.collectAsStateWithLifecycle()
+    val versionNames = remember(versions) { versions.map { it.getVersionName() } }
     val config = defaultMarkdownConfig()
 
     Column(
@@ -283,13 +300,52 @@ private fun ContentMenu(
             }
         }
 
-        // Stats grid fills remaining space — no scroll
-        StatsGrid(
-            modifier = Modifier.weight(1f),
-            onNavigateToStats = onNavigateToStats,
-            onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-            onNavigateToLog = onNavigateToLog
-        )
+        if (wideDashboard) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatsSideColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    side = StatsSide.Left,
+                    versionNames = versionNames,
+                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
+                    onNavigateToLog = onNavigateToLog
+                )
+                RightMenu(
+                    isVisible = isVisible,
+                    modifier = Modifier
+                        .weight(1.15f)
+                        .fillMaxHeight(),
+                    onLaunchGame = onLaunchGame,
+                    toAccountManageScreen = toAccountManageScreen,
+                    toVersionManageScreen = toVersionManageScreen,
+                    toVersionSettingsScreen = toVersionSettingsScreen
+                )
+                StatsSideColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    side = StatsSide.Right,
+                    versionNames = versionNames,
+                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
+                    onNavigateToLog = onNavigateToLog
+                )
+            }
+        } else {
+            // Compact layout keeps the original two-column dashboard.
+            StatsGrid(
+                modifier = Modifier.weight(1f),
+                versionNames = versionNames,
+                onNavigateToStats = onNavigateToStats,
+                onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
+                onNavigateToLog = onNavigateToLog
+            )
+        }
 
         // Home page content below (only shown when configured)
         when (val state = pageState) {
@@ -335,12 +391,11 @@ private const val CHANGELOGS_UPDATE_TR = "https://raw.githubusercontent.com/TCL-
 @Composable
 private fun StatsGrid(
     modifier: Modifier = Modifier,
+    versionNames: List<String>,
     onNavigateToStats: () -> Unit,
     onNavigateToPlayTimeStats: () -> Unit = {},
     onNavigateToLog: (String) -> Unit,
 ) {
-    val versions by VersionsManager.versions.collectAsStateWithLifecycle()
-    val versionNames = remember(versions) { versions.map { it.getVersionName() } }
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -380,6 +435,70 @@ private fun StatsGrid(
             )
             LastLogCard(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                onNavigateToLog = onNavigateToLog
+            )
+        }
+    }
+}
+
+private enum class StatsSide {
+    Left,
+    Right
+}
+
+@Composable
+private fun StatsSideColumn(
+    modifier: Modifier = Modifier,
+    side: StatsSide,
+    versionNames: List<String>,
+    onNavigateToPlayTimeStats: () -> Unit,
+    onNavigateToLog: (String) -> Unit
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (side == StatsSide.Left) {
+                Text(
+                    text = stringResource(R.string.stats_today_header),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .alpha(0.5f)
+                )
+            }
+        }
+
+        if (side == StatsSide.Left) {
+            WeeklyPlayTimeChart(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                versionNames = versionNames
+            )
+            DailyPlayTimeCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                versionNames = versionNames,
+                onClick = onNavigateToPlayTimeStats
+            )
+        } else {
+            ChangelogCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            )
+            LastLogCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 onNavigateToLog = onNavigateToLog
             )
         }
