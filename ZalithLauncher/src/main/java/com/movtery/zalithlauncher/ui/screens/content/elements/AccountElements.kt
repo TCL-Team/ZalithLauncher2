@@ -153,7 +153,6 @@ import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BaseIconTextButton
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.MarqueeText
-import com.movtery.zalithlauncher.ui.components.ModelAnimation
 import com.movtery.zalithlauncher.ui.components.OwnOutlinedTextField
 import com.movtery.zalithlauncher.ui.components.PlayerSkin
 import com.movtery.zalithlauncher.ui.components.RadioCard
@@ -1344,10 +1343,10 @@ fun ChangeSkinDialog(
      * 初始化账号设置的皮肤
      */
     fun loadSkin() {
-        val capeFile = account.getCapeFile()
+        val capeFile = account.getSelectedCapeFile()
         val skinFile = account.getSkinFile()
 
-        if (skinFile.exists() && capeFile.exists()) {
+        if (skinFile.exists() && capeFile?.isFile == true) {
             runCatching {
                 skinFile.inputStream().use { skinStream ->
                     capeFile.inputStream().use { capeStream ->
@@ -1365,6 +1364,9 @@ fun ChangeSkinDialog(
                 skinId = account.uniqueUUID.takeIf { account.hasSkinFile },
                 model = account.skinModelType
             )
+            capeFile?.takeIf { it.isFile }?.inputStream()?.use { capeStream ->
+                playerSkin.loadCape(capeStream)
+            } ?: playerSkin.loadCape(cape = null)
         }
     }
 
@@ -1423,8 +1425,9 @@ fun ChangeSkinDialog(
                 if (account.isMicrosoftAccount()) {
                     capeObj = currentCapeToLoad
                 } else {
-                    val file = account.getCapeFile()
-                    if (file.exists()) capeStream = file.inputStream()
+                    account.getSelectedCapeFile()?.let { file ->
+                        capeStream = file.inputStream()
+                    }
                 }
             }
         }
@@ -1514,7 +1517,7 @@ fun ChangeSkinDialog(
                                         context = context,
                                         onPageFinished = {
                                             pageFinished = true
-                                            playerSkin.startAnim(ModelAnimation.Walking, 0.8f)
+                                            playerSkin.startAnimationCycle()
                                             playerSkin.setAzimuthAndPitch(0, 10, 50)
                                         }
                                     )
@@ -1777,8 +1780,8 @@ fun ChangeSkinDialog(
                 capeCollectionChanged = true
                 capeRefreshKey++
                 AccountsManager.refreshWardrobe()
-                val f = account.getCapeFile()
-                if (f.exists()) {
+                val f = account.getSelectedCapeFile()
+                if (f?.isFile == true) {
                     f.inputStream().use { playerSkin.loadCape(it) }
                 } else {
                     playerSkin.loadCape(cape = null)
@@ -1788,8 +1791,8 @@ fun ChangeSkinDialog(
                 capeCollectionChanged = true
                 capeRefreshKey++
                 AccountsManager.refreshWardrobe()
-                val f = account.getCapeFile()
-                if (f.exists()) {
+                val f = account.getSelectedCapeFile()
+                if (f?.isFile == true) {
                     f.inputStream().use { playerSkin.loadCape(it) }
                 } else {
                     playerSkin.loadCape(cape = null)

@@ -100,7 +100,6 @@ import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
-import com.movtery.zalithlauncher.ui.components.ModelAnimation
 import com.movtery.zalithlauncher.ui.components.PlayerSkin
 import com.movtery.zalithlauncher.ui.components.ScalingActionButton
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
@@ -282,7 +281,7 @@ private fun AccountManageContent(
         currentAccount?.getSkinFile()?.takeIf { it.exists() }
     }
     val accountCape = remember(currentAccount, refreshWardrobe) {
-        currentAccount?.getCapeFile()?.takeIf { it.exists() }
+        currentAccount?.getSelectedCapeFile()
     }
     val playerSkin = remember { PlayerSkin(context) }
     var pageFinished by remember { mutableStateOf(false) }
@@ -325,7 +324,7 @@ private fun AccountManageContent(
                                     context = ctx,
                                     onPageFinished = {
                                         pageFinished = true
-                                        playerSkin.startAnim(ModelAnimation.NewIdle)
+                                        playerSkin.startAnimationCycle()
                                         playerSkin.setAzimuthAndPitch(-35, 10)
                                     }
                                 )

@@ -20,6 +20,8 @@ package com.movtery.zalithlauncher.ui.components
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 import android.webkit.ConsoleMessage
@@ -36,6 +38,7 @@ import com.movtery.zalithlauncher.game.account.wardrobe.EmptyCape
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
 import com.movtery.zalithlauncher.game.account.yggdrasil.PlayerProfile
 import com.movtery.zalithlauncher.path.PathManager
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 
@@ -250,6 +253,10 @@ class PlayerSkin(
         )
     }
 
+    fun startAnimationCycle() {
+        webview?.evaluateJavascript("startAnimationCycle()", null)
+    }
+
     fun setAzimuthAndPitch(azimuthDeg: Int, pitchDeg: Int, distance: Int = 60) {
         webview?.evaluateJavascript(
             "setAzimuthAndPitch($azimuthDeg, $pitchDeg, $distance)",
@@ -273,10 +280,27 @@ class PlayerSkin(
     }
 
     private fun InputStream.asBase64Image(): String {
-        return readBytes().let { bytes ->
-            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            "data:image/png;base64,$base64"
+        val sourceBytes = readBytes()
+        val pngSignature = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        val isPng = sourceBytes.size >= pngSignature.size && pngSignature.indices.all { sourceBytes[it] == pngSignature[it] }
+        val imageBytes = if (isPng) {
+            sourceBytes
+        } else {
+            val bitmap = BitmapFactory.decodeByteArray(sourceBytes, 0, sourceBytes.size)
+            if (bitmap == null) {
+                sourceBytes
+            } else {
+                try {
+                    ByteArrayOutputStream().use { output ->
+                        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) output.toByteArray() else sourceBytes
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+            }
         }
+        val base64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
+        return "data:image/png;base64,$base64"
     }
 }
 
