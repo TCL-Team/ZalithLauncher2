@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
+import java.io.IOException
 
 private const val TAG = "PackExporter"
 
@@ -53,6 +54,7 @@ class PackExporter(
     val context: Context,
     val exportInfo: ExportInfo,
     private val scope: CoroutineScope,
+    private val workingDirectory: File = PathManager.DIR_CACHE_MODPACK_EXPORTER,
 ) {
     private val taskExecutor = TaskFlowExecutor(scope)
     val taskFlow: StateFlow<List<TitledTask>> = taskExecutor.tasksFlow
@@ -65,7 +67,7 @@ class PackExporter(
     }
 
     /**
-     * 开始导出整合包
+     * Export a pack to a user-selected document tree.
      */
     fun startExport(
         outputUri: Uri,
@@ -74,30 +76,77 @@ class PackExporter(
         onFinished: () -> Unit,
         onError: (Throwable) -> Unit
     ) {
+        startExportInternal(
+            version = version,
+            writeOutput = { pack ->
+                context.writeLocalFile(
+                    inputFile = pack,
+                    outputUri = outputUri,
+                    mimeType = "application/*"
+                )
+            },
+            isRunning = isRunning,
+            onFinished = onFinished,
+            onError = onError
+        )
+    }
+
+    /**
+     * Export a pack directly to an app-private file, used by PlayLink before upload.
+     */
+    fun startExportToFile(
+        outputFile: File,
+        version: Version,
+        isRunning: () -> Unit = {},
+        onFinished: () -> Unit,
+        onError: (Throwable) -> Unit,
+        onCancelled: () -> Unit = {}
+    ) {
+        startExportInternal(
+            version = version,
+            writeOutput = { pack ->
+                outputFile.parentFile?.let { parent ->
+                    if (!parent.exists() && !parent.mkdirs()) {
+                        throw IOException("Failed to create the pack output directory.")
+                    }
+                }
+                FileUtils.copyFile(pack, outputFile)
+            },
+            isRunning = isRunning,
+            onFinished = onFinished,
+            onError = onError,
+            onCancelled = onCancelled
+        )
+    }
+
+    private fun startExportInternal(
+        version: Version,
+        writeOutput: suspend (File) -> Unit,
+        isRunning: () -> Unit,
+        onFinished: () -> Unit,
+        onError: (Throwable) -> Unit,
+        onCancelled: () -> Unit = {}
+    ) {
         if (taskExecutor.isRunning()) {
             isRunning()
-            return //正在运行中，拒绝导出
+            return
         }
 
         taskExecutor.executePhasesAsync(
             onStart = {
-                val tasks = getTaskPhases(outputUri, version)
-                taskExecutor.addPhases(tasks)
+                taskExecutor.addPhases(getTaskPhases(version, writeOutput))
             },
-            onComplete = {
-                onFinished()
-            },
-            onError = { e ->
-                onError(e)
-            }
+            onComplete = onFinished,
+            onError = onError,
+            onCancel = onCancelled
         )
     }
 
     private suspend fun getTaskPhases(
-        outputUri: Uri,
-        version: Version
+        version: Version,
+        writeOutput: suspend (File) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val exportCachePath = PathManager.DIR_CACHE_MODPACK_EXPORTER
+        val exportCachePath = workingDirectory
         val tempPath = File(exportCachePath, "temp")
         val pack = File(exportCachePath, "${exportInfo.name}.${exporter.fileSuffix}")
 
@@ -133,11 +182,7 @@ class PackExporter(
                         preserveFileTime = false
                     )
 
-                    context.writeLocalFile(
-                        inputFile = pack,
-                        outputUri = outputUri,
-                        mimeType = "application/*"
-                    )
+                    writeOutput(pack)
                 }
 
                 addTask(
@@ -155,7 +200,7 @@ class PackExporter(
      * 清理临时整合包导出目录
      */
     private suspend fun clearTempModPackDir() = withContext(Dispatchers.IO) {
-        PathManager.DIR_CACHE_MODPACK_EXPORTER.takeIf { it.exists() }?.let { folder ->
+        workingDirectory.takeIf { it.exists() }?.let { folder ->
             FileUtils.deleteQuietly(folder)
             Logger.info(TAG, "Temporary modpack export directory cleared.")
         }

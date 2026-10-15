@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All records are accessed through authenticated Cloud Functions. Share-link
+    // reads are resolved server-side using an unguessable random link ID.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

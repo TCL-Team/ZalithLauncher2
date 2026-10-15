@@ -1,0 +1,33 @@
+{
+  "functions": {
+    "source": "playlink-backend/functions",
+    "runtime": "nodejs22"
+  },
+  "firestore": {
+    "rules": "playlink-backend/firestore.rules"
+  },
+  "storage": {
+    "rules": "playlink-backend/storage.rules"
+  },
+  "hosting": {
+    "public": "playlink-backend/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "function": {
+          "functionId": "playLinkApi",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/play/**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

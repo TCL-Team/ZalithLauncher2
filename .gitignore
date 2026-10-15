@@ -9,6 +9,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+.firebaserc
+.firebase/
+playlink-backend/functions/node_modules/
+playlink-backend/functions/.env*
+!playlink-backend/functions/.env.example
 .oauth_client_id.txt
 .store_password.txt
 .key_password.txt
