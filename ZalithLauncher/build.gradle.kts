@@ -64,8 +64,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = zalithPackageName
-        applicationIdSuffix = ".v2"
+        applicationId = "com.tcl"
+        applicationIdSuffix = ".mc"
         minSdk = 26
         targetSdk = 34
         versionCode = launcherVersionCode
