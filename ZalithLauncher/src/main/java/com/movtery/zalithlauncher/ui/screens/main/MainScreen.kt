@@ -106,6 +106,7 @@ import com.movtery.zalithlauncher.ui.screens.content.PlayTimeStatsScreen
 import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
+import com.movtery.zalithlauncher.ui.screens.content.PlayLinkScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionExportScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionSettingsScreen
@@ -233,6 +234,12 @@ fun MainScreen(
                         )
                     )
                 },
+                toPlayLinkScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.PlayLink
+                    )
+                },
                 toRecordingsScreen = {
                     screenBackStackModel.mainScreen.removeAndNavigateTo(
                         removes = screenBackStackModel.clearBeforeNavKeys,
@@ -287,6 +294,7 @@ private fun <E: TitledNavKey> TopBar(
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
     openFileManager: () -> Unit,
+    toPlayLinkScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
     changeExpandedState: () -> Unit,
@@ -295,6 +303,7 @@ private fun <E: TitledNavKey> TopBar(
 
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
     val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
+    val inPlayLinkScreen = mainScreenKey is NormalNavKey.PlayLink
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
 
@@ -467,6 +476,15 @@ private fun <E: TitledNavKey> TopBar(
                     text = stringResource(R.string.page_title_recordings),
                     onClick = {
                         if (!inRecordingsScreen) toRecordingsScreen()
+                    },
+                )
+
+                TopBarRailItem(
+                    selected = inPlayLinkScreen,
+                    painter = painterResource(R.drawable.ic_link),
+                    text = stringResource(R.string.playlink_title),
+                    onClick = {
+                        if (!inPlayLinkScreen) toPlayLinkScreen()
                     },
                 )
 
@@ -716,6 +734,9 @@ private fun NavigationUI(
                         backScreenViewModel = screenBackStackModel,
                         eventViewModel = eventViewModel
                     )
+                }
+                entry<NormalNavKey.PlayLink> {
+                    PlayLinkScreen(backStackViewModel = screenBackStackModel)
                 }
                 entry<NormalNavKey.HomePageEditor> {
                     HomePageEditorScreen(
