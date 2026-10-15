@@ -80,6 +80,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
@@ -94,9 +95,7 @@ import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.AccountManageScreen
 import com.movtery.zalithlauncher.ui.screens.content.elements.SocialDialog
-import com.movtery.zalithlauncher.ui.screens.content.BuiltInFileManagerScreen
 import com.movtery.zalithlauncher.ui.screens.content.DownloadScreen
-import com.movtery.zalithlauncher.ui.screens.content.FileEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileSelectorScreen
 import com.movtery.zalithlauncher.ui.screens.content.HomePageEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
@@ -227,9 +226,11 @@ fun MainScreen(
                         screenKey = NormalNavKey.Multiplayer
                     )
                 },
-                toFileManagerScreen = {
-                    screenBackStackModel.mainScreen.navigateTo(
-                        screenKey = NormalNavKey.BuiltInFileManager()
+                openFileManager = {
+                    eventViewModel.sendEvent(
+                        EventViewModel.Event.OpenFileManager(
+                            rootPath = PathManager.DIR_FILES_EXTERNAL.absolutePath
+                        )
                     )
                 },
                 toRecordingsScreen = {
@@ -285,14 +286,13 @@ private fun <E: TitledNavKey> TopBar(
     toMainScreen: () -> Unit,
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
-    toFileManagerScreen: () -> Unit,
+    openFileManager: () -> Unit,
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
 
-    val inFileManagerScreen = mainScreenKey is NormalNavKey.BuiltInFileManager
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
     val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
@@ -454,14 +454,12 @@ private fun <E: TitledNavKey> TopBar(
                     }
                 }
 
-                TopBarRailItem(
-                    selected = inFileManagerScreen,
-                    painter = painterResource(R.drawable.ic_folder_outlined),
-                    text = stringResource(R.string.page_title_file_manager),
-                    onClick = {
-                        if (!inFileManagerScreen) toFileManagerScreen()
-                    },
-                )
+                IconButton(onClick = openFileManager) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_folder_filled),
+                        contentDescription = null
+                    )
+                }
 
                 TopBarRailItem(
                     selected = inRecordingsScreen,
@@ -717,23 +715,6 @@ private fun NavigationUI(
                     MultiplayerScreen(
                         backScreenViewModel = screenBackStackModel,
                         eventViewModel = eventViewModel
-                    )
-                }
-                entry<NormalNavKey.BuiltInFileManager> { key ->
-                    BuiltInFileManagerScreen(
-                        key = key,
-                        backStackViewModel = screenBackStackModel,
-                        submitError = submitError,
-                        navigateToEditor = { path ->
-                            backStack.navigateTo(NormalNavKey.FileEditor(filePath = path))
-                        }
-                    )
-                }
-                entry<NormalNavKey.FileEditor> { key ->
-                    FileEditorScreen(
-                        key = key,
-                        backStackViewModel = screenBackStackModel,
-                        submitError = submitError
                     )
                 }
                 entry<NormalNavKey.HomePageEditor> {

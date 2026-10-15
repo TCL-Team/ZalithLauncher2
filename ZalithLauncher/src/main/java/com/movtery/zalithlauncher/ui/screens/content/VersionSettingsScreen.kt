@@ -431,8 +431,11 @@ private fun NavigationUI(
                         backToMainScreen = backToMainScreen,
                         onExport = onExport,
                         onOpenFolder = { folderPath ->
-                            backScreenViewModel.mainScreen.navigateTo(
-                                NormalNavKey.BuiltInFileManager(startPath = folderPath)
+                            eventViewModel.sendEvent(
+                                EventViewModel.Event.OpenFileManager(
+                                    rootPath = version.getGameHome(),
+                                    currentPath = folderPath
+                                )
                             )
                         },
                         version = version,
