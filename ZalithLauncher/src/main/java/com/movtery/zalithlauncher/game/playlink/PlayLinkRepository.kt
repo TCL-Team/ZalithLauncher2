@@ -52,42 +52,6 @@ private val playLinkHttpClient: OkHttpClient by lazy {
         .build()
 }
 
-private fun encodePlayLinkValue(value: String): String =
-    URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
-
-private suspend fun awaitPlayLinkJson(request: Request): JSONObject {
-    awaitPlayLinkResponse(request).use { response ->
-        val text = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-            val message = runCatching {
-                val error = JSONObject(text).opt("error")
-                if (error is JSONObject) error.optString("message") else error?.toString()
-            }.getOrNull().orEmpty()
-            throw IOException(message.ifBlank { "PlayLink request failed (HTTP ${response.code})." })
-        }
-        return runCatching { JSONObject(text) }
-            .getOrElse { throw IOException("PlayLink service returned an invalid response.", it) }
-    }
-}
-
-private suspend fun awaitPlayLinkResponse(request: Request): Response = suspendCancellableCoroutine { continuation ->
-    val call = playLinkHttpClient.newCall(request)
-    continuation.invokeOnCancellation { call.cancel() }
-    call.enqueue(object : Callback {
-        override fun onFailure(call: Call, error: IOException) {
-            if (continuation.isActive) continuation.resumeWithException(error)
-        }
-
-        override fun onResponse(call: Call, response: Response) {
-            try {
-                continuation.resume(response)
-            } catch (_: IllegalStateException) {
-                response.close()
-            }
-        }
-    })
-}
-
 data class PlayLinkMetadata(
     val id: String,
     val packName: String,
@@ -133,22 +97,22 @@ private object PlayLinkAnonymousAuth {
     }
 
     private suspend fun signInAnonymously(config: PlayLinkConfig): AuthTokens {
-        val url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodePlayLinkValue(config.apiKey)}"
+        val url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encode(config.apiKey)}"
         val request = Request.Builder()
             .url(url)
             .post(JSONObject().put("returnSecureToken", true).toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        return parseTokens(awaitPlayLinkJson(request))
+        return parseTokens(awaitJson(request))
     }
 
     private suspend fun refresh(config: PlayLinkConfig, refreshToken: String): AuthTokens {
-        val body = "grant_type=refresh_token&refresh_token=${encodePlayLinkValue(refreshToken)}"
+        val body = "grant_type=refresh_token&refresh_token=${encode(refreshToken)}"
             .toRequestBody("application/x-www-form-urlencoded".toMediaType())
         val request = Request.Builder()
-            .url("https://securetoken.googleapis.com/v1/token?key=${encodePlayLinkValue(config.apiKey)}")
+            .url("https://securetoken.googleapis.com/v1/token?key=${encode(config.apiKey)}")
             .post(body)
             .build()
-        return parseTokens(awaitPlayLinkJson(request))
+        return parseTokens(awaitJson(request))
     }
 
     private fun parseTokens(json: JSONObject): AuthTokens {
@@ -268,7 +232,7 @@ object PlayLinkRepository {
         destination.delete()
 
         val request = Request.Builder().url(metadata.downloadUrl).get().build()
-        val response = awaitPlayLinkResponse(request)
+        val response = awaitResponse(request)
         try {
             if (!response.isSuccessful) {
                 throw IOException("Pack download failed (HTTP ${response.code}).")
@@ -313,8 +277,8 @@ object PlayLinkRepository {
         objectPath: String,
         file: File
     ) {
-        val bucket = encodePlayLinkValue(config.storageBucket)
-        val name = encodePlayLinkValue(objectPath)
+        val bucket = encode(config.storageBucket)
+        val name = encode(objectPath)
         val startRequest = Request.Builder()
             .url("https://firebasestorage.googleapis.com/v0/b/$bucket/o?uploadType=resumable&name=$name")
             .header("Authorization", "Firebase $idToken")
@@ -325,7 +289,7 @@ object PlayLinkRepository {
             .post("{}".toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        val uploadUrl = awaitPlayLinkResponse(startRequest).use { response ->
+        val uploadUrl = awaitResponse(startRequest).use { response ->
             if (!response.isSuccessful) {
                 throw IOException("Could not start the PlayLink pack upload (HTTP ${response.code}).")
             }
@@ -340,7 +304,7 @@ object PlayLinkRepository {
             .header("X-Goog-Upload-Offset", "0")
             .put(file.asRequestBody(BINARY_MEDIA_TYPE))
             .build()
-        awaitPlayLinkResponse(uploadRequest).use { response ->
+        awaitResponse(uploadRequest).use { response ->
             if (!response.isSuccessful) {
                 throw IOException("PlayLink pack upload failed (HTTP ${response.code}).")
             }
@@ -357,12 +321,27 @@ object PlayLinkRepository {
             .header("Authorization", "Bearer $idToken")
             .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        return awaitPlayLinkJson(request)
+        return awaitJson(request)
     }
 
     private suspend fun getJson(url: String): JSONObject {
         val request = Request.Builder().url(url).get().build()
-        return awaitPlayLinkJson(request)
+        return awaitJson(request)
+    }
+
+    private suspend fun awaitJson(request: Request): JSONObject {
+        awaitResponse(request).use { response ->
+            val text = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val message = runCatching {
+                    val error = JSONObject(text).opt("error")
+                    if (error is JSONObject) error.optString("message") else error?.toString()
+                }.getOrNull().orEmpty()
+                throw IOException(message.ifBlank { "PlayLink request failed (HTTP ${response.code})." })
+            }
+            return runCatching { JSONObject(text) }
+                .getOrElse { throw IOException("PlayLink service returned an invalid response.", it) }
+        }
     }
 
     private fun parseId(config: PlayLinkConfig, input: String): String {
@@ -389,4 +368,24 @@ object PlayLinkRepository {
             (uri.host == "storage.googleapis.com" || uri.host!!.endsWith(".googleapis.com"))
     }.getOrDefault(false)
 
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
+
+    private suspend fun awaitResponse(request: Request): Response = suspendCancellableCoroutine { continuation ->
+        val call = playLinkHttpClient.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(error)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    continuation.resume(response)
+                } catch (_: IllegalStateException) {
+                    response.close()
+                }
+            }
+        })
+    }
 }
