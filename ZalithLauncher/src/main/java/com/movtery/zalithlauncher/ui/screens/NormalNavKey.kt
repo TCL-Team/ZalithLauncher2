@@ -67,10 +67,6 @@ sealed interface NormalNavKey : TitledNavKey {
     @Serializable data object Multiplayer: NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.terracotta_terracotta)
     }
-    /** PlayLink入口屏幕 */
-    @Serializable data object PlayLink : NormalNavKey {
-        @Contextual override val title: AndroidStringText = androidText(R.string.playlink_title)
-    }
     /** 查看日志屏幕 */
     @Serializable data class LogView(
         val logPath: String
