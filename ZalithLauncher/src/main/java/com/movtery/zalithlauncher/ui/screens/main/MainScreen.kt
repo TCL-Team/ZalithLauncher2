@@ -736,11 +736,7 @@ private fun NavigationUI(
                     )
                 }
                 entry<NormalNavKey.PlayLink> {
-                    PlayLinkScreen(
-                        backStackViewModel = screenBackStackModel,
-                        modpackImportViewModel = modpackImportViewModel,
-                        eventViewModel = eventViewModel
-                    )
+                    PlayLinkScreen(backStackViewModel = screenBackStackModel)
                 }
                 entry<NormalNavKey.HomePageEditor> {
                     HomePageEditorScreen(
