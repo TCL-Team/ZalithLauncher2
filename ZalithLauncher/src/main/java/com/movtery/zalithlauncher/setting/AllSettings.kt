@@ -427,7 +427,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器背景元素不透明度
      */
-    val launcherBackgroundOpacity = intSetting("launcherBackgroundOpacity", 80, 20..100)
+    val launcherBackgroundOpacity = intSetting("launcherBackgroundOpacity", 20, 20..100)
 
     /**
      * 启动器视频背景音量
@@ -437,7 +437,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器背景模糊效果
      */
-    val backgroundBlur = intSetting("backgroundBlur", 0, 0..40)
+    val backgroundBlur = intSetting("backgroundBlur", 3, 3..40)
 
     /**
      * 启动器背景模糊效果类型
