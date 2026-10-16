@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.ui.screens.content
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
@@ -907,7 +908,12 @@ private fun RightMenu(
         ) { innerModifier, onClick, text ->
             ScalingActionButton(
                 modifier = innerModifier,
+                colors = ButtonDefaults.outlinedButtonColors(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                ),
                 onClick = onClick,
                 content = text
             )

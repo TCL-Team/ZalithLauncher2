@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -490,7 +491,7 @@ private fun QuickLaunchButton(
         }
     }
     when {
-        iconOnly -> Button(
+        iconOnly -> OutlinedButton(
             onClick = launch,
             modifier = modifier,
             shape = CircleShape,
@@ -502,7 +503,7 @@ private fun QuickLaunchButton(
                 contentDescription = stringResource(R.string.main_launch_game)
             )
         }
-        compact -> Button(
+        compact -> OutlinedButton(
             onClick = launch,
             modifier = modifier,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
@@ -518,7 +519,7 @@ private fun QuickLaunchButton(
                 style = MaterialTheme.typography.labelSmall
             )
         }
-        else -> Button(onClick = launch, modifier = modifier) {
+        else -> OutlinedButton(onClick = launch, modifier = modifier) {
             Icon(
                 modifier = Modifier.size(16.dp),
                 painter = painterResource(R.drawable.ic_play_arrow_filled),

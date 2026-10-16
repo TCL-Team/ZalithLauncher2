@@ -211,15 +211,8 @@ fun <E> influencedByBackground(
     influenced: E,
     enabled: Boolean = true
 ): E {
-    return if (enabled) {
-        if (LocalBackgroundViewModel.current?.isValid == true) {
-            influenced
-        } else {
-            value
-        }
-    } else {
-        value
-    }
+    // A bundled launcher background is present even when no custom background is selected.
+    return if (enabled) influenced else value
 }
 
 @Composable
