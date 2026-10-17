@@ -55,9 +55,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -77,24 +80,30 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
-import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.path.PathManager
+import com.movtery.zalithlauncher.path.URL_ORIGINAL_PROJECT
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
+import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
-import com.movtery.zalithlauncher.ui.guide.sendStartGuideOnce
 import com.movtery.zalithlauncher.ui.screens.BackStackNavKey
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.AccountManageScreen
+import com.movtery.zalithlauncher.ui.screens.content.elements.SocialDialog
 import com.movtery.zalithlauncher.ui.screens.content.DownloadScreen
 import com.movtery.zalithlauncher.ui.screens.content.FileSelectorScreen
+import com.movtery.zalithlauncher.ui.screens.content.HomePageEditorScreen
 import com.movtery.zalithlauncher.ui.screens.content.LauncherScreen
 import com.movtery.zalithlauncher.ui.screens.content.LicenseScreen
+import com.movtery.zalithlauncher.ui.screens.content.GameStatsScreen
+import com.movtery.zalithlauncher.ui.screens.content.CapeGalleryScreen
+import com.movtery.zalithlauncher.ui.screens.content.PlayTimeStatsScreen
+import com.movtery.zalithlauncher.ui.screens.content.RecordingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.LogViewScreen
 import com.movtery.zalithlauncher.ui.screens.content.MultiplayerScreen
 import com.movtery.zalithlauncher.ui.screens.content.SettingsScreen
@@ -109,7 +118,7 @@ import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
 import com.movtery.zalithlauncher.ui.theme.backgroundColor
 import com.movtery.zalithlauncher.ui.theme.cardColor
-import com.movtery.zalithlauncher.ui.theme.festivals.FestivalTitleText
+import com.movtery.zalithlauncher.ui.theme.feativals.FestivalTitleText
 import com.movtery.zalithlauncher.ui.theme.onBackgroundColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
@@ -118,7 +127,6 @@ import com.movtery.zalithlauncher.utils.file.formatFileSize
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
-import com.movtery.zalithlauncher.viewmodel.ModifyVersionViewModel
 import com.movtery.zalithlauncher.viewmodel.ModpackImportViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
@@ -129,7 +137,6 @@ fun MainScreen(
     screenBackStackModel: ScreenBackStackViewModel,
     eventViewModel: EventViewModel,
     modpackImportViewModel: ModpackImportViewModel,
-    modifyVersionViewModel: ModifyVersionViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     val tasks by TaskSystem.tasksFlow.collectAsStateWithLifecycle()
@@ -145,6 +152,24 @@ fun MainScreen(
     }
 
     val isTaskMenuExpanded = AllSettings.launcherTaskMenuExpanded.state
+    val showDisclaimer = AllSettings.disclaimerAccepted.state
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    if (!showDisclaimer) {
+        SimpleAlertDialog(
+            title = stringResource(R.string.disclaimer_title),
+            text = stringResource(R.string.disclaimer_content),
+            confirmText = stringResource(R.string.generic_got_it),
+            dismissText = stringResource(R.string.disclaimer_original_repo),
+            onConfirm = {
+                AllSettings.disclaimerAccepted.save(true)
+            },
+            onDismiss = {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(URL_ORIGINAL_PROJECT))
+                context.startActivity(intent)
+            }
+        )
+    }
 
     fun changeTasksExpandedState() {
         AllSettings.launcherTaskMenuExpanded.save(!isTaskMenuExpanded)
@@ -158,12 +183,11 @@ fun MainScreen(
     val mainScreenKey = screenBackStackModel.mainScreen.currentKey
     val inLauncherScreen = mainScreenKey == null || mainScreenKey is NormalNavKey.LauncherMain
 
-    val isBackgroundValid = LocalBackgroundViewModel.current?.isValid == true
     val launcherBackgroundOpacity = AllSettings.launcherBackgroundOpacity.state.toFloat() / 100f
 
-    val backgroundColor = if (isBackgroundValid) {
-        backgroundColor().copy(alpha = launcherBackgroundOpacity)
-    } else backgroundColor()
+    //Background() hamesha kuch na kuch dikhata hai (custom background ya default bundled video),
+    //isliye Surface ko hamesha semi-transparent rakho taaki neeche wali video/image dikhe
+    val backgroundColor = backgroundColor().copy(alpha = launcherBackgroundOpacity)
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -209,6 +233,12 @@ fun MainScreen(
                         )
                     )
                 },
+                toRecordingsScreen = {
+                    screenBackStackModel.mainScreen.removeAndNavigateTo(
+                        removes = screenBackStackModel.clearBeforeNavKeys,
+                        screenKey = NormalNavKey.Recordings
+                    )
+                },
                 changeExpandedState = {
                     changeTasksExpandedState()
                 },
@@ -225,7 +255,6 @@ fun MainScreen(
                     toMainScreen = toMainScreen,
                     eventViewModel = eventViewModel,
                     modpackImportViewModel = modpackImportViewModel,
-                    modifyVersionViewModel = modifyVersionViewModel,
                     submitError = submitError
                 )
 
@@ -257,15 +286,22 @@ private fun <E: TitledNavKey> TopBar(
     toMainScreen: () -> Unit,
     toSettingsScreen: () -> Unit,
     toDownloadScreen: () -> Unit,
-    toMultiplayerScreen: () -> Unit,
     openFileManager: () -> Unit,
+    toMultiplayerScreen: () -> Unit,
+    toRecordingsScreen: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
 
     val inMultiplayerScreen = mainScreenKey is NormalNavKey.Multiplayer
+    val inRecordingsScreen = mainScreenKey is NormalNavKey.Recordings
     val inDownloadScreen = mainScreenKey is NestedNavKey.Download
     val inSettingsScreen = mainScreenKey is NestedNavKey.Settings
+
+    var showSocialDialog by remember { mutableStateOf(false) }
+    if (showSocialDialog) {
+        SocialDialog(onDismissRequest = { showSocialDialog = false })
+    }
 
     CompositionLocalProvider(
         LocalContentColor provides contentColor
@@ -340,18 +376,29 @@ private fun <E: TitledNavKey> TopBar(
                 val maxLines = 1
 
                 if (parent == null) {
-                    if (festivals.isEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        if (festivals.isEmpty()) {
+                            Text(
+                                text = BuildKeys.LAUNCHER_IDENTIFIER,
+                                style = style,
+                                softWrap = softWarp,
+                                maxLines = maxLines
+                            )
+                        } else {
+                            FestivalTitleText(
+                                festivals = festivals,
+                                style = style,
+                                maxLines = maxLines
+                            )
+                        }
                         Text(
-                            text = BuildKeys.LAUNCHER_IDENTIFIER,
-                            style = style,
+                            modifier = Modifier.alpha(0.6f),
+                            text = stringResource(R.string.launcher_fork_subtitle),
+                            style = MaterialTheme.typography.labelSmall,
                             softWrap = softWarp,
-                            maxLines = maxLines
-                        )
-                    } else {
-                        FestivalTitleText(
-                            festivals = festivals,
-                            style = style,
-                            maxLines = maxLines
+                            maxLines = 1
                         )
                     }
                 } else {
@@ -407,9 +454,7 @@ private fun <E: TitledNavKey> TopBar(
                     }
                 }
 
-                IconButton(
-                    onClick = openFileManager
-                ) {
+                IconButton(onClick = openFileManager) {
                     Icon(
                         painter = painterResource(R.drawable.ic_folder_filled),
                         contentDescription = null
@@ -417,11 +462,29 @@ private fun <E: TitledNavKey> TopBar(
                 }
 
                 TopBarRailItem(
+                    selected = inRecordingsScreen,
+                    painter = painterResource(R.drawable.ic_videocam_outlined),
+                    text = stringResource(R.string.page_title_recordings),
+                    onClick = {
+                        if (!inRecordingsScreen) toRecordingsScreen()
+                    },
+                )
+
+                TopBarRailItem(
                     selected = inMultiplayerScreen,
                     painter = painterResource(R.drawable.ic_group_filled),
                     text = stringResource(R.string.terracotta),
                     onClick = {
                         if (!inMultiplayerScreen) toMultiplayerScreen()
+                    },
+                )
+
+                TopBarRailItem(
+                    selected = showSocialDialog,
+                    painter = painterResource(R.drawable.ic_public),
+                    text = "Social",
+                    onClick = {
+                        showSocialDialog = true
                     },
                 )
 
@@ -489,7 +552,6 @@ private fun NavigationUI(
     toMainScreen: () -> Unit,
     eventViewModel: EventViewModel,
     modpackImportViewModel: ModpackImportViewModel,
-    modifyVersionViewModel: ModifyVersionViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     val backStack = screenBackStackModel.mainScreen.backStack
@@ -501,30 +563,35 @@ private fun NavigationUI(
 
     if (backStack.isNotEmpty()) {
         /** 导航至版本详细信息屏幕 */
-        val navigateToVersions: (Version) -> Unit = { version ->
-            screenBackStackModel.mainScreen.navigateTo(
-                screenKey = NestedNavKey.VersionSettings(version),
-                useClassEquality = true
-            )
+        val navigateToVersions: (Version) -> Unit = remember(screenBackStackModel) {
+            { version ->
+                screenBackStackModel.mainScreen.navigateTo(
+                    screenKey = NestedNavKey.VersionSettings(version),
+                    useClassEquality = true
+                )
+            }
         }
         /** 导航至整合包导出屏幕 */
-        val navigateToExport: (Version) -> Unit = { version ->
-            screenBackStackModel.mainScreen.removeAndNavigateTo(
-                remove = NestedNavKey.VersionSettings::class,
-                screenKey = NestedNavKey.VersionExport(version),
-                useClassEquality = true
-            )
+        val navigateToExport: (Version) -> Unit = remember(screenBackStackModel) {
+            { version ->
+                screenBackStackModel.mainScreen.removeAndNavigateTo(
+                    remove = NestedNavKey.VersionSettings::class,
+                    screenKey = NestedNavKey.VersionExport(version),
+                    useClassEquality = true
+                )
+            }
         }
 
-        NavDisplay(
-            backStack = backStack,
-            modifier = modifier,
-            onBack = {
-                onBack(backStack)
-            },
-            transitionSpec = rememberTransitionSpec(),
-            popTransitionSpec = rememberTransitionSpec(),
-            entryProvider = entryProvider {
+        val provider = remember(
+            screenBackStackModel,
+            toMainScreen,
+            eventViewModel,
+            modpackImportViewModel,
+            submitError,
+            navigateToVersions,
+            navigateToExport
+        ) {
+            entryProvider {
                 entry<NormalNavKey.LauncherMain> {
                     LauncherScreen(
                         backStackViewModel = screenBackStackModel,
@@ -534,22 +601,20 @@ private fun NavigationUI(
                                 EventViewModel.Event.Launch.Game(version)
                             )
                         },
-                        onQuickPlayServer = { version, address ->
-                            val target = (version ?: VersionsManager.currentVersion.value)?.takeIf { it.isValid() }
-                            if (target != null) {
-                                eventViewModel.sendEvent(
-                                    EventViewModel.Event.Launch.PlayServer(target, address)
-                                )
-                            } else {
-                                eventViewModel.sendToast(androidText(R.string.game_launch_no_version))
-                                screenBackStackModel.mainScreen.navigateTo(NormalNavKey.VersionsManager)
-                            }
-                        },
                         onOpenLink = {
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(it))
                         },
-                        startGuideOnce = { keys ->
-                            eventViewModel.sendStartGuideOnce(keys)
+                        onHomePageEvent = { event ->
+                            eventViewModel.sendEvent(EventViewModel.Event.HomePage.Event(event))
+                        },
+                        onNavigateToStats = {
+                            backStack.navigateTo(NormalNavKey.GameStats)
+                        },
+                        onNavigateToPlayTimeStats = {
+                            backStack.navigateTo(NormalNavKey.PlayTimeStats)
+                        },
+                        onNavigateToLog = { logPath ->
+                            backStack.navigateTo(NormalNavKey.LogView(logPath))
                         }
                     )
                 }
@@ -578,7 +643,9 @@ private fun NavigationUI(
                         openLink = { url ->
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
                         },
-                        eventViewModel = eventViewModel,
+                        showToast = { text, duration ->
+                            eventViewModel.sendToast(text, duration)
+                        },
                         submitError = submitError
                     )
                 }
@@ -609,7 +676,6 @@ private fun NavigationUI(
                 entry<NestedNavKey.VersionSettings> { key ->
                     VersionSettingsScreen(
                         key = key,
-                        modifyViewModel = modifyVersionViewModel,
                         backScreenViewModel = screenBackStackModel,
                         backToMainScreen = toMainScreen,
                         onExportModpack = {
@@ -651,13 +717,51 @@ private fun NavigationUI(
                         eventViewModel = eventViewModel
                     )
                 }
+                entry<NormalNavKey.HomePageEditor> {
+                    HomePageEditorScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
                 entry<NormalNavKey.LogView> { key ->
                     LogViewScreen(
                         key = key,
                         backStackViewModel = screenBackStackModel,
                     )
                 }
+                entry<NormalNavKey.GameStats> {
+                    GameStatsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.PlayTimeStats> {
+                    PlayTimeStatsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.CapeGallery> { key ->
+                    CapeGalleryScreen(
+                        key = key,
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+                entry<NormalNavKey.Recordings> {
+                    RecordingsScreen(
+                        backStackViewModel = screenBackStackModel,
+                    )
+                }
+
             }
+        }
+
+        NavDisplay(
+            backStack = backStack,
+            modifier = modifier,
+            onBack = {
+                onBack(backStack)
+            },
+            transitionSpec = rememberTransitionSpec(),
+            popTransitionSpec = rememberTransitionSpec(),
+            entryProvider = provider
         )
     } else {
         Box(modifier)
@@ -732,7 +836,11 @@ private fun TaskMenu(
                         .weight(1f),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    items(tasks) { task ->
+                    items(
+                        items = tasks,
+                        key = { it.id },
+                        contentType = { "task" }
+                    ) { task ->
                         val taskProgress by task.progress.collectAsStateWithLifecycle()
                         val taskMessage by task.message.collectAsStateWithLifecycle()
                         val rateBytesPerSec by task.rateBytesPerSec.collectAsStateWithLifecycle()

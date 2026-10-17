@@ -19,6 +19,7 @@
 package com.movtery.zalithlauncher.ui.activities
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -94,6 +95,9 @@ import com.movtery.zalithlauncher.game.launch.handler.HandlerType
 import com.movtery.zalithlauncher.game.launch.handler.JVMHandler
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
 import com.movtery.zalithlauncher.game.plugin.PluginLoader
+import com.movtery.zalithlauncher.game.recorder.GameRecorder
+import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
+import com.movtery.zalithlauncher.game.recorder.GameSurfaceRegistry
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.game.version.installed.Version
@@ -183,6 +187,7 @@ class VMViewModel : ViewModel() {
     }
 
     private var _session: LaunchSession? = null
+    private var sessionStartTime = 0L
     val session: LaunchSession
         get() = _session ?: error("LaunchSession not initialized")
 
@@ -195,6 +200,7 @@ class VMViewModel : ViewModel() {
         exitListener: (Int, Boolean) -> Unit,
     ) {
         if (_session != null) return
+        sessionStartTime = System.currentTimeMillis()
 
         _session = when {
             bundle.getBoolean(INTENT_RUN_GAME) -> {
@@ -205,6 +211,17 @@ class VMViewModel : ViewModel() {
                     activity = activity,
                     config = config,
                     onExit = { code, isSignal ->
+                        val endTime = System.currentTimeMillis()
+                        val duration = endTime - sessionStartTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                            PlayTimeRepository.recordSession(
+                                config.version.getVersionName(),
+                                sessionStartTime,
+                                endTime
+                            )
+                        }
                         if (code == 0) {
                             val finishedCount = AllSettings.finishedGame.getValue()
                             if (finishedCount < Int.MAX_VALUE)  {
@@ -245,7 +262,14 @@ class VMViewModel : ViewModel() {
                 val launcher = JvmLauncher(
                     context = activity,
                     jvmLaunchInfo = jvmLaunchInfo,
-                    onExit = exitListener,
+                    onExit = { code, isSignal ->
+                        val duration = System.currentTimeMillis() - sessionStartTime
+                        if (duration > 0) {
+                            val currentPlayTime = AllSettings.playTime.getValue()
+                            AllSettings.playTime.save(currentPlayTime + duration)
+                        }
+                        exitListener(code, isSignal)
+                    },
                     openPath = { folder ->
                         _openFolderOperation.update {
                             OpenFolderOperation.OpenFolder(folder)
@@ -407,6 +431,9 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
             }
         )
 
+        @Suppress("DEPRECATION")
+        setTaskDescription(ActivityManager.TaskDescription(vmViewModel.session.activityTitle))
+
         //设置画面渲染输出回调
         CallbackBridge.setGraphicOutputListener {
             withHandler { onGraphicOutput() }
@@ -537,12 +564,6 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
         }
     }
 
-    override fun getTaskDescriptionTitle(): String? {
-        return runCatching {
-            vmViewModel.session.activityTitle
-        }.getOrNull()
-    }
-
     override fun onResume() {
         super.onResume()
         withHandler { onResume() }
@@ -650,6 +671,8 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     }
 
     override fun onDestroy() {
+        GameRecorder.stopAndSave(applicationContext)
+        GameSurfaceRegistry.unregister()
         getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displayListener)
         stopAllService()
         withHandler { onDestroy() }
@@ -988,6 +1011,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                             }
                         }
                     }
+                    GameSurfaceRegistry.register(view)
                     view.setOnApplyWindowInsetsListener { v, insets ->
                         if (SdlBridge.sdlEnabled && android.os.Build.VERSION.SDK_INT >= 30) {
                             SDLActivity.notifyImeVisibilityChanged(

@@ -44,6 +44,9 @@ class ObservableControlLayout(
     private val _joystickStyles = MutableStateFlow(layout.joystickStyles.map { ObservableJoystickStyle(it) })
     val joystickStyles = _joystickStyles.asStateFlow()
 
+    private val _special = MutableStateFlow(ObservableSpecial(layout.special))
+    val special = _special.asStateFlow()
+
     /**
      * 添加控件层
      * @return 新添加的可观察控件层
@@ -192,6 +195,7 @@ class ObservableControlLayout(
             layers = _layers.value.map { it.pack() },
             styles = _styles.value.map { it.pack() },
             joystickStyles = _joystickStyles.value.map { it.pack() },
+            special = _special.value.pack(),
             editorVersion = EDITOR_VERSION
         )
     }

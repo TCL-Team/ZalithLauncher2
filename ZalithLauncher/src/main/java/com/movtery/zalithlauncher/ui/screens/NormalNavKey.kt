@@ -44,6 +44,10 @@ sealed interface NormalNavKey : TitledNavKey {
     ) : NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.page_title_account_list)
     }
+    /** 自定义主页编辑器屏幕 */
+    @Serializable data object HomePageEditor : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.page_title_home_page_editor)
+    }
     /** Web屏幕 */
     @Serializable data class WebScreen(val url: String) : NormalNavKey
     /** 版本管理屏幕 */
@@ -63,7 +67,6 @@ sealed interface NormalNavKey : TitledNavKey {
     @Serializable data object Multiplayer: NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.terracotta_terracotta)
     }
-
     /** 查看日志屏幕 */
     @Serializable data class LogView(
         val logPath: String
@@ -76,6 +79,10 @@ sealed interface NormalNavKey : TitledNavKey {
         /** 渲染器设置屏幕 */
         @Serializable data object Renderer : Settings {
             @Contextual override val title: AndroidStringText = androidText(R.string.settings_tab_renderer)
+        }
+        /** Turnip 驱动下载屏幕 */
+        @Serializable data object TurnipDrivers : Settings {
+            @Contextual override val title: AndroidStringText = androidText(R.string.settings_renderer_download_turnip)
         }
         /** 游戏设置屏幕 */
         @Serializable data object Game : Settings {
@@ -117,13 +124,13 @@ sealed interface NormalNavKey : TitledNavKey {
         @Serializable data object Config : Versions {
             @Contextual override val title: AndroidStringText = androidText(R.string.versions_settings_config)
         }
-        /** 修改版本屏幕 */
+        /** 修改版本的游戏版本与模组加载器 */
         @Serializable data object ModifyVersion : Versions {
             @Contextual override val title: AndroidStringText = androidText(R.string.versions_modify_version)
         }
-        /** 选择要修改的 Minecraft 版本屏幕 */
-        @Serializable data object SelectGameVersion : Versions {
-            @Contextual override val title: AndroidStringText = androidText(R.string.versions_modify_select_mc)
+        /** 更新版本的模组加载器 */
+        @Serializable data object UpdateLoader : Versions {
+            @Contextual override var title: AndroidStringText = androidText(R.string.versions_update_loader)
         }
         /** 模组管理屏幕 */
         @Serializable data object ModsManager : Versions {
@@ -179,13 +186,13 @@ sealed interface NormalNavKey : TitledNavKey {
     @Serializable data object SearchSaves : NormalNavKey
     /** 搜索光影包屏幕 */
     @Serializable data object SearchShaders : NormalNavKey
+    /** 收藏资源屏幕 */
+    @Serializable data object Favorites : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.download_category_favorites)
+    }
     /** 搜索ID屏幕 */
     @Serializable data object SearchId : NormalNavKey {
         @Contextual override val title: AndroidStringText = androidText(R.string.download_category_by_id)
-    }
-    /** 收藏屏幕 */
-    @Serializable data object Favorites : NormalNavKey {
-        @Contextual override val title: AndroidStringText = androidText(R.string.download_category_favorites)
     }
 
     /** 下载资源屏幕 */
@@ -196,8 +203,30 @@ sealed interface NormalNavKey : TitledNavKey {
         val iconUrl: String? = null
     ) : NormalNavKey
 
+    /** 游戏统计屏幕 */
+    @Serializable data object GameStats : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.stats_game_stats)
+    }
+
+    /** 游戏时间统计屏幕 */
+    @Serializable data object PlayTimeStats : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.stats_play_time_title)
+    }
+
     /** 协议展示屏幕 */
     @Serializable data class License(
         val raw: Int
     ): NormalNavKey
+
+    /** 披风浏览屏幕 */
+    @Serializable data class CapeGallery(
+        val accountUUID: String
+    ): NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.account_capes_labynet_title)
+    }
+
+    /** 录像管理屏幕 */
+    @Serializable data object Recordings : NormalNavKey {
+        @Contextual override val title: AndroidStringText = androidText(R.string.page_title_recordings)
+    }
 }

@@ -121,6 +121,38 @@ function startAnim(name, speed) {
     }
 }
 
+const previewAnimationSequence = [
+    { name: "NewIdle", speed: 1.0, duration: 5200 },
+    { name: "Wave", speed: 0.85, duration: 4200 },
+    { name: "Walking", speed: 0.8, duration: 5200 },
+    { name: "Running", speed: 0.72, duration: 4200 },
+    { name: "Crouch", speed: 0.85, duration: 4200 },
+    { name: "Flying", speed: 0.8, duration: 4200 }
+];
+let animationCycleTimer = null;
+let animationCycleIndex = 0;
+
+function stopAnimationCycle() {
+    if (animationCycleTimer !== null) {
+        clearTimeout(animationCycleTimer);
+        animationCycleTimer = null;
+    }
+}
+
+function startAnimationCycle() {
+    stopAnimationCycle();
+    animationCycleIndex = 0;
+
+    const playNextAnimation = () => {
+        const animation = previewAnimationSequence[animationCycleIndex];
+        startAnim(animation.name, animation.speed);
+        animationCycleIndex = (animationCycleIndex + 1) % previewAnimationSequence.length;
+        animationCycleTimer = setTimeout(playNextAnimation, animation.duration);
+    };
+
+    playNextAnimation();
+}
+
 skinViewer.controls.enableRotate = true;
 skinViewer.controls.enableZoom = false;
 skinViewer.controls.enablePan = false;

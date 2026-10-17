@@ -33,8 +33,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.movtery.inputmap.keycodes.ControlEventKeycode
 import com.movtery.layer_controller.event.ClickEvent
+import com.movtery.zalithlauncher.game.keycodes.ControlEventKeycode
 import com.movtery.zalithlauncher.game.keycodes.mapToControlEvent
 import com.movtery.zalithlauncher.game.sdl.SdlBridge
 import com.movtery.zalithlauncher.game.sdl.handleGamepadMotionEvent
@@ -109,8 +109,12 @@ fun SimpleGamepadCapture(
 
     DisposableEffect(view, gamepadViewModel) {
         val motionListener = View.OnGenericMotionListener { motionView, event ->
-            if (event.isGamepadEvent() && AllSettings.gamepadControl.state && gamepadViewModel.checkModePrompt()) {
-                //模式选择询问优先级最高
+            if (
+                event.isGamepadEvent() &&
+                AllSettings.gamepadControl.state &&
+                gamepadViewModel.checkModePrompt()
+            ) {
+                // Wait until the user confirms mapped vs SDL-direct gamepad input.
                 true
             } else if (isBinding()) {
                 remapperViewModel.sendEvent(
@@ -118,14 +122,17 @@ fun SimpleGamepadCapture(
                 )
                 true
             } else if (event.isGamepadEvent() && event.action == MotionEvent.ACTION_MOVE) {
-                if (AllSettings.gamepadControl.state && AllSettings.gamepadInputMode.state == GamepadInputMode.SdlDirect) {
+                if (
+                    AllSettings.gamepadControl.state &&
+                    AllSettings.gamepadInputMode.state == GamepadInputMode.SdlDirect
+                ) {
                     if (SdlBridge.sdlEnabled) {
                         gamepadViewModel.notifyActivity()
                         handleGamepadMotionEvent(event)
                         try {
                             SDLActivity.forwardGenericMotionToSDL(motionView, event)
                         } catch (_: UnsatisfiedLinkError) {
-                            //SDL native 未就绪时忽略
+                            // SDL native is not ready yet.
                         }
                     }
                     true
@@ -161,12 +168,10 @@ fun SimpleGamepadCapture(
                     val pollLevel = gamepadViewModel.checkGamepadActive()
                     if (pollLevel == GamepadViewModel.PollLevel.Close) break
 
-                    // 按实际轮询间隔归一化本帧偏移量
-                    // 首轮询间隔记为0，避免重启循环后视角跳动
+                    // Normalize stick movement by the real polling interval.
                     val now = System.nanoTime()
                     val deltaMs = if (lastPollTime == 0L) 0.0 else (now - lastPollTime) / 1_000_000.0
                     lastPollTime = now
-
                     gamepadViewModel.pollJoystick(deltaMs)
                     delay(pollLevel.delayMs.milliseconds)
                 } catch (_: CancellationException) {
@@ -197,7 +202,7 @@ private fun GamepadEventListener(
 }
 
 /**
- * 手柄活动监听者
+ * 监听任意手柄活动，使控件层可以在按键映射尚未就绪时及时切换。
  */
 @Composable
 fun GamepadOnActionListener(
@@ -207,9 +212,7 @@ fun GamepadOnActionListener(
     val currentOnAction by rememberUpdatedState(onAction)
 
     DisposableEffect(gamepadViewModel) {
-        val listener: () -> Unit = {
-            currentOnAction()
-        }
+        val listener: () -> Unit = { currentOnAction() }
         gamepadViewModel.registerActionListener(listener)
         onDispose {
             gamepadViewModel.unregisterActionListener(listener)

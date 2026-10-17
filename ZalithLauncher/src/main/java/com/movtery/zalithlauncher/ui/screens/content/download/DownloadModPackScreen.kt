@@ -54,8 +54,9 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
 import com.movtery.zalithlauncher.game.download.jvm_server.JvmCrashException
-import com.movtery.zalithlauncher.game.download.jvm_server.isProcessStartRefused
 import com.movtery.zalithlauncher.game.download.modpack.install.ModPackInfo
+import com.movtery.zalithlauncher.coroutine.InstallerRestoreRegistry
+import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.download.modpack.install.ModPackInstaller
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
@@ -396,17 +397,37 @@ private fun ModPackInstallOperation(
         is ModPackInstallOperation.Install -> {
             if (installer != null) {
                 val tasks = installer.tasksFlow.collectAsStateWithLifecycle()
-                val installLog = installer.logOutput.collectAsStateWithLifecycle()
                 if (tasks.value.isNotEmpty()) {
                     //安装整合包流程对话框
+                    val dialogTitle = stringResource(R.string.download_modpack_install_title)
                     TitleTaskFlowDialog(
-                        title = stringResource(R.string.download_modpack_install_title),
+                        title = dialogTitle,
                         tasks = tasks.value,
                         onCancel = {
                             onCancel()
                             updateOperation(ModPackInstallOperation.None)
                         },
-                        logOutput = installLog.value
+                        onMinimize = {
+                            InstallerRestoreRegistry.collapseTaskMenu()
+                            val bgTask = installer.createBackgroundTask(
+                                onCancelRequest = { onCancel() }
+                            )
+                            InstallerRestoreRegistry.register(
+                                bgTask.id,
+                                InstallerRestoreRegistry.RestorableInstaller(
+                                    title = dialogTitle,
+                                    tasksFlow = installer.tasksFlow,
+                                    onCancel = {
+                                        onCancel()
+                                        updateOperation(ModPackInstallOperation.None)
+                                    }
+                                )
+                            )
+                            TaskSystem.submitTask(bgTask, onEnded = {
+                                InstallerRestoreRegistry.unregister(bgTask.id)
+                            })
+                            updateOperation(ModPackInstallOperation.None)
+                        }
                     )
                 }
             }
@@ -421,9 +442,8 @@ private fun ModPackInstallOperation(
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
-                else -> when {
-                    th.isProcessStartRefused() -> stringResource(R.string.download_install_error_process_start)
-                    else -> th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                else -> {
+                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
                 }
             }
             val dismiss = {

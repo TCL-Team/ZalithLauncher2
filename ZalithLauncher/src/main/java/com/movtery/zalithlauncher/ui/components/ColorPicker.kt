@@ -101,14 +101,13 @@ fun ColorPickerDialog(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.55f)
-                .heightIn(max = rememberDialogMaxHeight())
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 16.dp)
-                    .heightIn(max = (maxHeight - 32.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 32.dp)
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),

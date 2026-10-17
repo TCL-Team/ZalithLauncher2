@@ -27,5 +27,5 @@ class Converters {
 
     @TypeConverter
     fun toSkinModelType(value: String): SkinModelType =
-        enumValueOf(value)
+        SkinModelType.entries.firstOrNull { it.name == value } ?: SkinModelType.NONE
 }

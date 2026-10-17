@@ -43,6 +43,7 @@ class ObservableControlLayer(
     var hide by mutableStateOf(editorHide)
     var hideWhenMouse by mutableStateOf(layer.hideWhenMouse)
     var hideWhenGamepad by mutableStateOf(layer.hideWhenGamepad)
+    var hideWhenJoystick by mutableStateOf(layer.hideWhenJoystick)
     var visibilityType by mutableStateOf(layer.visibilityType)
     
     private val _normalButtons = MutableStateFlow(layer.normalButtons.map { ObservableNormalData(it) })
@@ -151,6 +152,7 @@ class ObservableControlLayer(
             hide = editorHide,
             hideWhenMouse = hideWhenMouse,
             hideWhenGamepad = hideWhenGamepad,
+            hideWhenJoystick = hideWhenJoystick,
             visibilityType = visibilityType,
             normalButtons = _normalButtons.value.map { it.packNormal() },
             textBoxes = _textBoxes.value.map { it.packText() },

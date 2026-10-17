@@ -64,7 +64,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -73,9 +72,8 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
 /**
- * 返回对话框内容可用的最大高度，以窗口容器高度为上界
- *
- * 输入法动画期间窗口高度可能被系统短暂压缩，这里记录最大值，避免对话框高度随之抖动
+ * Returns the maximum height available to dialog content, bounded by the window container.
+ * Retaining the largest observed height avoids dialog jumps while the IME animates.
  */
 @Composable
 fun rememberDialogMaxHeight(): Dp {
@@ -240,20 +238,15 @@ fun SimpleEditDialog(
     onCancel: () -> Unit = onDismissRequest,
     onConfirm: () -> Unit = {},
 ) {
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(decorFitsSystemWindows = false)
-    ) {
-        ImePanContainer(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+    Dialog(onDismissRequest = onDismissRequest) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 6.dp)
-                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 12.dp)
                     .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),
@@ -317,20 +310,15 @@ fun SimpleEditDialog(
     extraContent: @Composable (() -> Unit)? = null,
     onConfirm: () -> Unit = {},
 ) {
-    Dialog(
-        onDismissRequest = {},
-        properties = DialogProperties(decorFitsSystemWindows = false)
-    ) {
-        ImePanContainer(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+    Dialog(onDismissRequest = {}) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 6.dp)
-                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 12.dp)
                     .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),
@@ -516,15 +504,13 @@ fun <T> SimpleListDialog(
         }
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 3.dp)
-                    .heightIn(max = (maxHeight - 6.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 6.dp)
                     .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),

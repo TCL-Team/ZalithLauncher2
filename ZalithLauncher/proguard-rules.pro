@@ -59,3 +59,18 @@
 
 # SoraEditor language-textmate
 -keep class org.jcodings.** { *; }
+
+# Enum names are persisted and parsed by name in settings, Room, and serializers.
+# Keep enum constants stable across minified release builds and upgrades.
+-keepclassmembers enum * {
+    *;
+}
+
+# Flexmark's dependency resolver uses concrete implementation classes as keys.
+# Keep Dependent implementations from R8 class merging in minified Release builds.
+-keep class * implements com.vladsch.flexmark.util.dependency.Dependent { *; }
+
+# HtmlRenderer and FlexmarkHtmlConverter key node renderers by factory.getClass();
+# their factory interfaces do not extend Dependent, so retain those classes separately.
+-keep class * implements com.vladsch.flexmark.html.renderer.NodeRendererFactory { *; }
+-keep class * implements com.vladsch.flexmark.html2md.converter.HtmlNodeRendererFactory { *; }

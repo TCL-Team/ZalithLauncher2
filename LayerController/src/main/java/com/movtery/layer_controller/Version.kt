@@ -156,7 +156,7 @@ private fun update10To11(
 )
 
 /**
- * 11 -> 12: 控件层支持摇杆控件
+ * 11 -> 12: 保留摇杆控件兼容，并将启动器摇杆样式覆盖迁移为独立 special 数据
  */
 private fun update11To12(
     layout: ControlLayout

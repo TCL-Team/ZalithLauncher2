@@ -33,6 +33,7 @@ private const val COPYRIGHT_AOSP = "Copyright © The Android Open Source Project
 private const val COPYRIGHT_KTOR = "Copyright © 2000-2023 JetBrains s.r.o."
 
 private const val LICENSE_MIT = "MIT License"
+private const val LICENSE_LGPL_2_1 = "LGPL-2.1 License"
 private const val LICENSE_LGPL_3 = "LGPL-3.0 License"
 private const val LICENSE_AGPL_3 = "AGPL-3.0 License"
 private const val LICENSE_BSD_3_CLAUSE = "BSD 3-Clause License"

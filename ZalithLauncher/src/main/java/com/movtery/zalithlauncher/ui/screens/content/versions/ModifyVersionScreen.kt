@@ -62,6 +62,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.addons.modloader.AddonVersion
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.addons.modloader.cleanroom.CleanroomVersions
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.babric.BabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.legacyfabric.LegacyFabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersions
@@ -150,22 +151,22 @@ fun ModifyVersionScreen(
                     modifyViewModel = viewModel,
                     selectedGameVersion = selectedGameVersion,
                     onSelectGameVersion = {
-                        backStack.navigateTo(NormalNavKey.Versions.SelectGameVersion)
+                        backStack.navigateTo(NormalNavKey.DownloadGame.SelectGameVersion)
                     },
                     onModify = onModify
                 )
             }
-            entry<NormalNavKey.Versions.SelectGameVersion> {
+            entry<NormalNavKey.DownloadGame.SelectGameVersion> {
                 SelectGameVersionScreen(
                     host = SelectGameVersionHost.VersionSettings(
-                        mainScreenKey = mainScreenKey,
-                        versionSettingsScreenKey = versionsScreenKey
+                        mainScreenKey = mainScreenKey
                     ),
-                    eventViewModel = eventViewModel
-                ) { selected ->
-                    selectedGameVersion = selected
-                    onBack(backStack)
-                }
+                    eventViewModel = eventViewModel,
+                    onVersionSelect = { selected ->
+                        selectedGameVersion = selected
+                        onBack(backStack)
+                    }
+                )
             }
         }
     )
@@ -363,7 +364,12 @@ private fun ModifyVersionContent(
                                         quilt = addonsVM.currentAddon.quiltVersion.value
                                             .takeIf { loaderSupports.isQuiltSupports },
                                         cleanroom = addonsVM.currentAddon.cleanroomVersion.value
-                                            .takeIf { loaderSupports.isCleanroomSupports }
+                                            .takeIf { loaderSupports.isCleanroomSupports },
+                                        // Babric cannot be refreshed from this screen; preserve an existing
+                                        // Babric installation while the Minecraft base remains unchanged.
+                                        babric = installedLoaders.firstOrNull { it.loader == ModLoader.BABRIC }
+                                            ?.takeIf { targetGameVersion == originalGameVersion }
+                                            ?.let { BabricVersion(originalGameVersion, it.version, stable = true) }
                                     ),
                                     currentVersion = version,
                                     diffs = diffs

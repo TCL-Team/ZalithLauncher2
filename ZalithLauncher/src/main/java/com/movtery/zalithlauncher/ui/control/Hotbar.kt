@@ -46,35 +46,34 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.movtery.inputmap.keycodes.DROP
-import com.movtery.inputmap.keycodes.DROP_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_1
-import com.movtery.inputmap.keycodes.HOTBAR_1_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_2
-import com.movtery.inputmap.keycodes.HOTBAR_2_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_3
-import com.movtery.inputmap.keycodes.HOTBAR_3_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_4
-import com.movtery.inputmap.keycodes.HOTBAR_4_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_5
-import com.movtery.inputmap.keycodes.HOTBAR_5_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_6
-import com.movtery.inputmap.keycodes.HOTBAR_6_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_7
-import com.movtery.inputmap.keycodes.HOTBAR_7_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_8
-import com.movtery.inputmap.keycodes.HOTBAR_8_VALUE
-import com.movtery.inputmap.keycodes.HOTBAR_9
-import com.movtery.inputmap.keycodes.HOTBAR_9_VALUE
-import com.movtery.inputmap.keycodes.LwjglGlfwKeycode
-import com.movtery.inputmap.keycodes.SWAP_OFFHAND
-import com.movtery.inputmap.keycodes.SWAP_OFFHAND_VALUE
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.bridge.ZLBridgeStates
+import com.movtery.zalithlauncher.game.keycodes.DROP
+import com.movtery.zalithlauncher.game.keycodes.DROP_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_1
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_1_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_2
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_2_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_3
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_3_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_4
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_4_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_5
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_5_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_6
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_6_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_7
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_7_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_8
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_8_VALUE
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_9
+import com.movtery.zalithlauncher.game.keycodes.HOTBAR_9_VALUE
+import com.movtery.zalithlauncher.game.keycodes.LwjglGlfwKeycode
+import com.movtery.zalithlauncher.game.keycodes.SWAP_OFFHAND
+import com.movtery.zalithlauncher.game.keycodes.SWAP_OFFHAND_VALUE
 import com.movtery.zalithlauncher.game.keycodes.mapToKeycode
 import com.movtery.zalithlauncher.game.launch.MCOptions
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.utils.rememberGameRenderSize
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -131,7 +130,7 @@ private val keyList = listOf(
  * 点击、滑动快捷栏，会计算指针处于哪个槽位中，并触发 [sendKeycode] 回调
  *
  * @param isGrabbing 处于鼠标抓获模式下，才会开启判定箱
- * @param displayOffset 游戏画面的黑边偏移，用于对齐自定义分辨率下的快捷栏位置
+ * @param resolutionRatio 当前分辨率缩放
  */
 @Composable
 fun BoxScope.MinecraftHotbar(
@@ -141,6 +140,7 @@ fun BoxScope.MinecraftHotbar(
     heightPercentage: Float,
     sendKeycode: (key: Int) -> Unit,
     isGrabbing: Boolean = false,
+    resolutionRatio: Int,
     displayOffset: IntOffset = IntOffset.Zero,
     onOccupiedPointer: (PointerId) -> Unit,
     onReleasePointer: (PointerId) -> Unit
@@ -154,12 +154,14 @@ fun BoxScope.MinecraftHotbar(
         HotbarRule.Auto -> {
             val optionsChangeKey by MCOptions.refreshKey.collectAsStateWithLifecycle()
             val windowChangeKey by ZLBridgeStates.windowChangeKey.collectAsStateWithLifecycle()
-            val renderSize = rememberGameRenderSize(screenSize)
             LaunchedEffect(
                 isGrabbing, optionsChangeKey, screenSize, density,
-                renderSize, windowChangeKey
+                resolutionRatio, windowChangeKey
             ) {
-                val guiScale = getMCGuiScale(renderSize.width, renderSize.height)
+                val guiScale = getMCGuiScale(
+                    width = (screenSize.width * resolutionRatio / 100f).toInt(),
+                    height = (screenSize.height * resolutionRatio / 100f).toInt()
+                )
                 val slotSize = guiScale * 20
 
                 with(density) {
@@ -195,10 +197,7 @@ fun BoxScope.MinecraftHotbar(
         modifier = Modifier
             .size(hotbarSize)
             .align(Alignment.BottomCenter)
-            .offset {
-                //跟随游戏画面的显示区域，对齐黑边偏移
-                IntOffset(x = 0, y = -displayOffset.y)
-            }
+            .offset { IntOffset(x = 0, y = -displayOffset.y) }
             .then(
                 if (rule == HotbarRule.Custom) Modifier.background(Color.Red.copy(alpha = hotbarUpdateAnim.value))
                 else Modifier
@@ -384,6 +383,7 @@ private fun Modifier.mainTouchLogic(
                                     onDoubleClick()
                                     lastSlot = null
                                 } else {
+                                    onClick(finalSlotIndex)
                                     //完成单击后，记录上一次点击的槽位
                                     lastSlot = DownSlot(
                                         slot = finalSlotIndex,

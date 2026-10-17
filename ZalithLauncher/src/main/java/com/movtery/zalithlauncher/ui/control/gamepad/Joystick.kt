@@ -29,10 +29,9 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 private const val MOUSE_MAX_ACCELERATION = 2.0
-
-/** 采样基准周期（ms） */
+/** Sampling reference period in milliseconds. */
 private const val BASE_TICK_MS = 16.0
-/** 单次偏移量的最大时间倍率 */
+/** Limit a single poll to avoid unusually large pointer jumps after stalls. */
 private const val MAX_TIME_SCALE = 4.0
 
 /**
@@ -58,8 +57,7 @@ class Joystick(
         val mouseAngle = angleRadian ?: getAngleRadian()
         val acceleration = acceleration ?: calculateAcceleration()
 
-        // 偏移量按实际采样间隔归一化
-        // 采样率越高，单次偏移越小
+        // Normalize mouse movement against the actual polling interval.
         val timeScale = (deltaMs / BASE_TICK_MS).coerceIn(0.0, MAX_TIME_SCALE)
         val deltaX = (cos(mouseAngle) * acceleration * timeScale).toFloat()
         val deltaY = (sin(mouseAngle) * acceleration * timeScale).toFloat()

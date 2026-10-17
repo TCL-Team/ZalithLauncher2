@@ -39,7 +39,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -178,6 +177,7 @@ fun SimpleListItem(
     selected: Boolean,
     itemName: String,
     summary: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
     onClick: () -> Unit = {}
 ) {
@@ -192,6 +192,7 @@ fun SimpleListItem(
             onClick = onClick
         )
         Column(
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
@@ -200,6 +201,7 @@ fun SimpleListItem(
             )
             summary?.invoke()
         }
+        trailing?.invoke()
     }
 }
 
@@ -314,21 +316,17 @@ fun TitleAndSummary(
 @Composable
 fun FocusableBox(
     modifier: Modifier = Modifier,
-    requestKey: Any? = null,
-    canRequestFocus: () -> Boolean = { true }
+    requestKey: Any? = null
 ) {
     val focusRequester = remember { FocusRequester() }
-    val currentCanRequestFocus by rememberUpdatedState(canRequestFocus)
 
     Box(
         modifier = modifier
-            .focusRequester(focusRequester)
             .focusable(enabled = true)
+            .focusRequester(focusRequester)
     )
 
     LaunchedEffect(requestKey) {
-        if (currentCanRequestFocus()) {
-            focusRequester.requestFocus()
-        }
+        focusRequester.requestFocus()
     }
 }

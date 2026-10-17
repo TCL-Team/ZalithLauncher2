@@ -120,7 +120,7 @@ sealed interface NestedNavKey {
             backStack.addIfEmpty(NormalNavKey.SearchShaders)
         }
     }
-    /** 下载收藏屏幕 */
+    /** 下载收藏资源屏幕 */
     @Serializable class DownloadFavorites : BackStackNavKey<TitledNavKey>(
         androidText(R.string.download_category_favorites)
     ) {

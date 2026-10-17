@@ -24,6 +24,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -49,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -74,19 +76,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.ImageLoader
 import coil3.compose.AsyncImage
-import coil3.gif.GifDecoder
-import coil3.svg.SvgDecoder
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.path.GamePath
 import com.movtery.zalithlauncher.game.path.GamePathManager
+import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
+import com.movtery.zalithlauncher.game.version.mod.update.ModUpdateChecker
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.cleanup.CleanFailedException
 import com.movtery.zalithlauncher.game.version.installed.cleanup.GameAssetCleaner
-import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.LittleTextLabel
 import com.movtery.zalithlauncher.ui.components.MarqueeText
@@ -97,17 +97,14 @@ import com.movtery.zalithlauncher.ui.components.SimpleTaskDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
-import com.movtery.zalithlauncher.ui.screens.content.home.version.VersionCardDir
-import com.movtery.zalithlauncher.ui.screens.content.home.version.VersionCardManager
-import com.movtery.zalithlauncher.ui.theme.cardColor
-import com.movtery.zalithlauncher.ui.theme.onCardColor
+import com.movtery.zalithlauncher.ui.theme.itemColor
+import com.movtery.zalithlauncher.ui.theme.onItemColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
 
 private const val TAG = "VersionsManageElements"
 
@@ -170,12 +167,14 @@ fun GamePathItemLayout(
                     .padding(top = 4.dp, bottom = 4.dp)
                     .alpha(if (enabled) 1f else DisabledAlpha)
             ) {
-                Text(
-                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
-                    text = if (notDefault) item.title else stringResource(R.string.versions_manage_game_path_default),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE).weight(1f),
+                        text = if (notDefault) item.title else stringResource(R.string.versions_manage_game_path_default),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
+                    )
+                }
                 Text(
                     modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
                     text = item.path,
@@ -187,7 +186,7 @@ fun GamePathItemLayout(
         badge = {
             var menuExpanded by remember { mutableStateOf(false) }
 
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     modifier = Modifier.size(24.dp),
                     onClick = { menuExpanded = !menuExpanded }
@@ -394,11 +393,6 @@ fun VersionsOperation(
                             title = R.string.versions_manage_rename_version,
                             task = {
                                 VersionsManager.renameVersion(versionsOperation.version, it)
-                                VersionCardManager.onVersionRenamed(
-                                    gameHome = versionsOperation.version.getGameHome(),
-                                    oldName = versionsOperation.version.getVersionName(),
-                                    newName = it
-                                )
                             }
                         )
                     )
@@ -680,24 +674,28 @@ fun CleanupOperation(
     }
 }
 
+@Stable
+class VersionItemCallbacks(
+    val submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+    val onSelected: () -> Unit,
+    val onSettingsClick: () -> Unit,
+    val onRenameClick: () -> Unit,
+    val onCopyClick: () -> Unit,
+    val onExportClick: () -> Unit,
+    val onDeleteClick: () -> Unit,
+    val onPinned: () -> Unit,
+    val onAddShortcutClick: () -> Unit
+)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun VersionItemLayout(
     version: Version,
     selected: Boolean,
-    submitError: (ErrorViewModel.ThrowableMessage) -> Unit,
+    callbacks: VersionItemCallbacks,
     modifier: Modifier = Modifier,
-    influencedByBackground: Boolean = true,
-    color: Color = cardColor(influencedByBackground),
-    contentColor: Color = onCardColor(),
-    blur: Int = AllSettings.backgroundBlur.state,
-    onSelected: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-    onRenameClick: () -> Unit = {},
-    onCopyClick: () -> Unit = {},
-    onExportClick: () -> Unit = {},
-    onDeleteClick: () -> Unit = {},
-    onPinned: () -> Unit = {}
+    color: Color = itemColor(),
+    contentColor: Color = onItemColor()
 ) {
     val scale = remember { Animatable(initialValue = 0.95f) }
     LaunchedEffect(Unit) {
@@ -710,22 +708,21 @@ fun VersionItemLayout(
         shape = MaterialTheme.shapes.large,
         onClick = {
             if (selected) return@Surface
-            onSelected()
+            callbacks.onSelected()
         }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(shape = MaterialTheme.shapes.large)
-                .backgroundGlass(blur, color, influencedByBackground)
-                .padding(all = 4.dp),
+                .padding(all = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadioButton(
                 selected = selected,
                 onClick = {
                     if (selected) return@RadioButton
-                    onSelected()
+                    callbacks.onSelected()
                 }
             )
             CommonVersionInfoLayout(
@@ -740,14 +737,14 @@ fun VersionItemLayout(
                         version.setPinnedAndSave(!currentValue)
                     }.onFailure { e ->
                         Logger.error(TAG, "Failed to save version config!", e)
-                        submitError(
+                        callbacks.submitError(
                             ErrorViewModel.ThrowableMessage(
                                 title = androidText(R.string.versions_config_failed_to_save),
                                 message = androidText(e.getMessageOrToString())
                             )
                         )
                     }.onSuccess {
-                        onPinned()
+                        callbacks.onPinned()
                     }
                 },
                 enabled = version.isValid()
@@ -769,7 +766,7 @@ fun VersionItemLayout(
             }
 
             IconButton(
-                onClick = onSettingsClick,
+                onClick = callbacks.onSettingsClick,
                 enabled = version.isValid()
             ) {
                 Icon(
@@ -806,7 +803,7 @@ fun VersionItemLayout(
                             )
                         },
                         onClick = {
-                            onRenameClick()
+                            callbacks.onRenameClick()
                             menuExpanded = false
                         }
                     )
@@ -820,7 +817,7 @@ fun VersionItemLayout(
                             )
                         },
                         onClick = {
-                            onCopyClick()
+                            callbacks.onCopyClick()
                             menuExpanded = false
                         }
                     )
@@ -834,33 +831,21 @@ fun VersionItemLayout(
                             )
                         },
                         onClick = {
-                            onExportClick()
+                            callbacks.onExportClick()
                             menuExpanded = false
                         }
                     )
-                    //添加卡片到主界面
-                    val cardExists by remember(version) {
-                        VersionCardManager.cards.map { states ->
-                            states.any {
-                                it.record.versionName == version.getVersionName() &&
-                                        it.record.dir == VersionCardDir.fromGameHome(version.getGameHome())
-                            }
-                        }
-                    }.collectAsStateWithLifecycle(
-                        VersionCardManager.hasCard(version.getVersionName(), version.getGameHome())
-                    )
                     DropdownMenuItem(
-                        text = { Text(text = stringResource(R.string.home_add_version_card)) },
+                        text = { Text(text = stringResource(R.string.versions_manage_add_shortcut)) },
                         leadingIcon = {
                             Icon(
                                 modifier = Modifier.size(20.dp),
-                                painter = painterResource(R.drawable.ic_add_box_filled),
-                                contentDescription = stringResource(R.string.home_add_version_card)
+                                painter = painterResource(R.drawable.ic_add_box_outlined),
+                                contentDescription = stringResource(R.string.versions_manage_add_shortcut)
                             )
                         },
-                        enabled = version.isValid() && !cardExists,
                         onClick = {
-                            VersionCardManager.addCard(version)
+                            callbacks.onAddShortcutClick()
                             menuExpanded = false
                         }
                     )
@@ -874,7 +859,7 @@ fun VersionItemLayout(
                             )
                         },
                         onClick = {
-                            onDeleteClick()
+                            callbacks.onDeleteClick()
                             menuExpanded = false
                         }
                     )
@@ -884,6 +869,7 @@ fun VersionItemLayout(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CommonVersionInfoLayout(
     version: Version,
@@ -956,8 +942,74 @@ fun CommonVersionInfoLayout(
                             )
                         }
                     }
+                    val updateCount = remember(versionName) { ModUpdateChecker.getUpdateCount(versionName) }
+                    if (updateCount > 0) {
+                        LittleTextLabel(
+                            text = stringResource(R.string.versions_manage_mod_updates, updateCount),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            textStyle = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
+            //游戏时间信息
+            if (isValid) {
+                PlayTimeInfoRow(versionName = versionName)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlayTimeInfoRow(versionName: String) {
+    val lastPlayed = remember(versionName) { PlayTimeRepository.getLastPlayed(versionName) }
+    val totalMs = remember(versionName) { PlayTimeRepository.getTotalPlayTime(versionName) }
+
+    if (lastPlayed == 0L && totalMs == 0L) return
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lastPlayedText = remember(lastPlayed) {
+        if (lastPlayed == 0L) null
+        else {
+            val diff = System.currentTimeMillis() - lastPlayed
+            when {
+                diff < 60_000L -> context.getString(R.string.just_now)
+                diff < 3_600_000L -> context.getString(R.string.minutes_ago, (diff / 60_000L).toInt())
+                diff < 86_400_000L -> context.getString(R.string.hours_ago, (diff / 3_600_000L).toInt())
+                diff < 2_592_000_000L -> context.getString(R.string.days_ago, (diff / 86_400_000L).toInt())
+                diff < 31_536_000_000L -> context.getString(R.string.months_ago, (diff / 2_592_000_000L).toInt())
+                else -> context.getString(R.string.years_ago, (diff / 31_536_000_000L).toInt())
+            }
+        }
+    }
+    val totalText = remember(totalMs) {
+        if (totalMs == 0L) null
+        else {
+            val totalMinutes = (totalMs / 60_000L).toInt()
+            val hours = totalMinutes / 60
+            val minutes = totalMinutes % 60
+            if (hours > 0) context.getString(R.string.play_time_hours_minutes, hours, minutes)
+            else context.getString(R.string.play_time_minutes, minutes)
+        }
+    }
+
+    FlowRow(
+        modifier = Modifier.alpha(0.6f),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        lastPlayedText?.let {
+            Text(
+                text = stringResource(R.string.play_time_last_played, it),
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        totalText?.let {
+            Text(
+                text = stringResource(R.string.play_time_total, it),
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
@@ -972,16 +1024,6 @@ fun VersionIconImage(
         version?.let { getLoaderIconRes(it.getVersionInfo()?.primaryLoader?.loader) } ?: R.drawable.img_minecraft
     }
     val defaultIcon = painterResource(defaultIconRes)
-
-    val context = LocalContext.current
-    val loader = remember(version, refreshKey) {
-        ImageLoader.Builder(context)
-            .components {
-                add(GifDecoder.Factory())
-                add(SvgDecoder.Factory())
-            }
-            .build()
-    }
 
     val model = remember(version, refreshKey) {
         version?.let {
@@ -1003,7 +1045,6 @@ fun VersionIconImage(
         else -> {
             AsyncImage(
                 model = model,
-                imageLoader = loader,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = modifier

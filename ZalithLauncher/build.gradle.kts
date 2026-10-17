@@ -64,8 +64,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = zalithPackageName
-        applicationIdSuffix = ".v2"
+        applicationId = "com.tcl"
+        applicationIdSuffix = ".mc"
         minSdk = 26
         targetSdk = 34
         versionCode = launcherVersionCode
@@ -250,9 +250,10 @@ dependencies {
     implementation(libs.material.color.utilities)
     implementation(libs.materialKolor)
     implementation(libs.reorderable)
-    implementation(libs.richtext.commonmark)
-    implementation(libs.richtext.ui)
-    implementation(libs.richtext.ui.material3)
+    implementation(libs.compose.markdown)
+    implementation(libs.dev.haze)
+    implementation(libs.dev.haze.blur)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(platform(libs.editor.bom))
     implementation(libs.editor)
     implementation(libs.editor.language.textmate)

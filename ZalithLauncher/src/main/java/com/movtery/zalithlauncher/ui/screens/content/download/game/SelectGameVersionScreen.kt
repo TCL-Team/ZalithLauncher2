@@ -79,6 +79,7 @@ import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
+import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.CheckChip
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
 import com.movtery.zalithlauncher.ui.components.LittleTextLabel
@@ -131,10 +132,10 @@ private data class VersionFilter(
     val snapshot: Boolean = false,
     val aprilFools: Boolean = false,
     val old: Boolean = false,
-    val id: String = ""
+    val id: String = "",
 )
 
-private class VersionsViewModel: ViewModel() {
+private class VersionsViewModel : ViewModel() {
     var versionState by mutableStateOf<VersionState>(VersionState.Loading)
         private set
 
@@ -177,7 +178,6 @@ private class VersionsViewModel: ViewModel() {
     }
 
     init {
-        //初始化后，刷新版本列表
         refresh()
     }
 
@@ -186,21 +186,15 @@ private class VersionsViewModel: ViewModel() {
     }
 }
 
-/**
- * 选择 Minecraft 版本屏幕的宿主信息，提供可见性判定所需的导航层级
- */
 sealed interface SelectGameVersionHost {
-    /** 下载游戏流程 */
     data class Download(
         val mainScreenKey: TitledNavKey?,
         val downloadScreenKey: TitledNavKey?,
         val downloadGameScreenKey: TitledNavKey?
     ) : SelectGameVersionHost
 
-    /** 版本设置流程（修改版本） */
     data class VersionSettings(
-        val mainScreenKey: TitledNavKey?,
-        val versionSettingsScreenKey: TitledNavKey?
+        val mainScreenKey: TitledNavKey?
     ) : SelectGameVersionHost
 }
 
@@ -216,112 +210,101 @@ fun SelectGameVersionScreen(
         VersionsViewModel()
     }
 
-    when (host) {
-        is SelectGameVersionHost.Download -> BaseScreen(
-            levels1 = listOf(
-                Pair(NestedNavKey.Download::class.java, host.mainScreenKey),
-                Pair(NestedNavKey.DownloadGame::class.java, host.downloadScreenKey)
-            ),
-            Triple(NormalNavKey.DownloadGame.SelectGameVersion, host.downloadGameScreenKey, false)
-        ) { isVisible ->
-            SelectGameVersionContent(
-                isVisible = isVisible,
-                viewModel = viewModel,
-                eventViewModel = eventViewModel,
-                onVersionSelect = onVersionSelect
-            )
-        }
+    val screenContent: @Composable (Boolean) -> Unit = { isVisible ->
+        val yOffset by swapAnimateDpAsState(
+            targetValue = (-40).dp,
+            swapIn = isVisible
+        )
 
-        is SelectGameVersionHost.VersionSettings -> BaseScreen(
-            levels1 = listOf(
-                Pair(NestedNavKey.VersionSettings::class.java, host.mainScreenKey)
-            ),
-            Triple(NormalNavKey.Versions.ModifyVersion, host.versionSettingsScreenKey, false)
-        ) { isVisible ->
-            SelectGameVersionContent(
-                isVisible = isVisible,
-                viewModel = viewModel,
-                eventViewModel = eventViewModel,
-                onVersionSelect = onVersionSelect
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
+        ) {
+            when (val state = viewModel.versionState) {
+                is VersionState.Loading -> {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LinearWavyProgressIndicator(
+                            modifier = Modifier.width(168.dp),
+                            wavelength = 32.dp
+                        )
+                    }
+                }
+
+                is VersionState.Failure -> {
+                    Box(Modifier.fillMaxSize()) {
+                        ScalingLabel(
+                            modifier = Modifier.align(Alignment.Center),
+                            text = {
+                                AndroidStringText(
+                                    text = buildAppendedText {
+                                        append(R.string.download_game_failed_to_get_versions)
+                                        append(state.message)
+                                    }
+                                )
+                            },
+                            onClick = {
+                                viewModel.refresh(true)
+                            }
+                        )
+                    }
+                }
+
+                is VersionState.None -> {
+                    Column {
+                        VersionHeader(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                            versionFilter = viewModel.versionFilter,
+                            onVersionFilterChange = { viewModel.filterWith(it) },
+                            itemContainerColor = cardColor(),
+                            itemContentColor = onCardColor(),
+                            onRefreshClick = {
+                                viewModel.refresh(true)
+                            }
+                        )
+
+                        VersionList(
+                            modifier = Modifier.weight(1f),
+                            versions = state.versions,
+                            onVersionSelect = onVersionSelect,
+                            openLink = { url ->
+                                eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
-}
 
-@Composable
-private fun SelectGameVersionContent(
-    isVisible: Boolean,
-    viewModel: VersionsViewModel,
-    eventViewModel: EventViewModel,
-    onVersionSelect: (String) -> Unit
-) {
-    val yOffset by swapAnimateDpAsState(
-        targetValue = (-40).dp,
-        swapIn = isVisible
-    )
+    when (host) {
+        is SelectGameVersionHost.Download -> {
+            BaseScreen(
+                levels1 = listOf(
+                    Pair(NestedNavKey.Download::class.java, host.mainScreenKey),
+                    Pair(NestedNavKey.DownloadGame::class.java, host.downloadScreenKey)
+                ),
+                Triple(
+                    NormalNavKey.DownloadGame.SelectGameVersion,
+                    host.downloadGameScreenKey,
+                    false
+                )
+            ) { isVisible -> screenContent(isVisible) }
+        }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
-    ) {
-        when (val state = viewModel.versionState) {
-            is VersionState.Loading -> {
-                Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LinearWavyProgressIndicator(
-                        modifier = Modifier.width(168.dp),
-                        wavelength = 32.dp
-                    )
-                }
-            }
-
-            is VersionState.Failure -> {
-                Box(Modifier.fillMaxSize()) {
-                    ScalingLabel(
-                        modifier = Modifier.align(Alignment.Center),
-                        text = {
-                            AndroidStringText(
-                                text = androidText(
-                                    R.string.download_game_failed_to_get_versions,
-                                    state.message
-                                )
-                            )
-                        },
-                        onClick = {
-                            viewModel.refresh(true)
-                        }
-                    )
-                }
-            }
-
-            is VersionState.None -> {
-                Column {
-                    VersionHeader(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        versionFilter = viewModel.versionFilter,
-                        onVersionFilterChange = { viewModel.filterWith(it) },
-                        itemContainerColor = cardColor(),
-                        itemContentColor = onCardColor(),
-                        onRefreshClick = {
-                            viewModel.refresh(true)
-                        }
-                    )
-
-                    VersionList(
-                        modifier = Modifier.weight(1f),
-                        versions = state.versions,
-                        onVersionSelect = onVersionSelect,
-                        openLink = { url ->
-                            eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
-                        }
-                    )
-                }
-            }
+        is SelectGameVersionHost.VersionSettings -> {
+            val route = NormalNavKey.DownloadGame.SelectGameVersion
+            BaseScreen(
+                levels1 = listOf(
+                    Pair(NestedNavKey.VersionSettings::class.java, host.mainScreenKey)
+                ),
+                Triple(route, route, false)
+            ) { isVisible -> screenContent(isVisible) }
         }
     }
 }
@@ -331,17 +314,18 @@ private fun SelectGameVersionContent(
  */
 private fun List<MinecraftVersion>.filterVersions(
     versionFilter: VersionFilter
-) = this.filter { version ->
-    version.isType(
-        release = versionFilter.release,
-        snapshot = versionFilter.snapshot,
-        aprilFools = versionFilter.aprilFools,
-        old = versionFilter.old
-    )
-}.filter { version ->
-    //Fix：单独过滤版本名称
-    val versionId = versionFilter.id
-    versionId.isEmptyOrBlank() || version.version.id.contains(versionId)
+): List<MinecraftVersion> {
+    return this.filter { version ->
+        version.isType(
+            release = versionFilter.release,
+            snapshot = versionFilter.snapshot,
+            aprilFools = versionFilter.aprilFools,
+            old = versionFilter.old
+        )
+    }.filter { version ->
+        val versionId = versionFilter.id
+        versionId.isEmptyOrBlank() || version.version.id.contains(versionId)
+    }
 }
 
 @Composable

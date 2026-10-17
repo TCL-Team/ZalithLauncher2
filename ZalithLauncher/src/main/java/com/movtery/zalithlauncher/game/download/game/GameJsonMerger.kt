@@ -53,6 +53,7 @@ fun mergeGameJson(
     forgeFolder: File? = null,
     neoForgeFolder: File? = null,
     fabricFolder: File? = null,
+    babricFolder: File? = null,
     legacyFabricFolder: File? = null,
     quiltFolder: File? = null,
     cleanroomFolder: File? = null
@@ -63,6 +64,7 @@ fun mergeGameJson(
                 (if (forgeFolder != null) "，${ModLoader.FORGE.displayName}: $forgeFolder" else "") +
                 (if (neoForgeFolder != null) "，${ModLoader.NEOFORGE.displayName}: $neoForgeFolder" else "") +
                 (if (fabricFolder != null) "，${ModLoader.FABRIC.displayName}: $fabricFolder" else "") +
+                (if (babricFolder != null) "，${ModLoader.BABRIC.displayName}: $babricFolder" else "") +
                 (if (legacyFabricFolder != null) "，${ModLoader.LEGACY_FABRIC.displayName}: $legacyFabricFolder" else "") +
                 (if (quiltFolder != null) "，${ModLoader.QUILT.displayName}: $quiltFolder" else "") +
                 (if (cleanroomFolder != null) "，${ModLoader.CLEANROOM.displayName}: $cleanroomFolder" else "")
@@ -80,6 +82,7 @@ fun mergeGameJson(
     val forgeJsonPath = forgeFolder.gameFileOrNull("json")
     val neoForgeJsonPath = neoForgeFolder.gameFileOrNull("json")
     val fabricJsonPath = fabricFolder.gameFileOrNull("json")
+    val babricJsonPath = babricFolder.gameFileOrNull("json")
     val legacyFabricJsonPath = legacyFabricFolder.gameFileOrNull("json")
     val quiltJsonPath = quiltFolder.gameFileOrNull("json")
     val cleanroomJsonPath = cleanroomFolder.gameFileOrNull("json")
@@ -91,6 +94,7 @@ fun mergeGameJson(
     val forgeJson = forgeJsonPath.getJsonOrNull(ModLoader.FORGE.displayName)
     val neoForgeJson = neoForgeJsonPath.getJsonOrNull(ModLoader.NEOFORGE.displayName)
     val fabricJson = fabricJsonPath.getJsonOrNull(ModLoader.FABRIC.displayName)
+    val babricJson = babricJsonPath.getJsonOrNull(ModLoader.BABRIC.displayName)
     val legacyFabricJson = legacyFabricJsonPath.getJsonOrNull(ModLoader.LEGACY_FABRIC.displayName)
     val quiltJson = quiltJsonPath.getJsonOrNull(ModLoader.FABRIC.displayName)
     val cleanroomJson = cleanroomJsonPath.getJsonOrNull(ModLoader.CLEANROOM.displayName)
@@ -118,7 +122,7 @@ fun mergeGameJson(
     listOfNotNull(
         optiFineJson,
         forgeJson, neoForgeJson,
-        fabricJson, quiltJson,
+        fabricJson, babricJson, quiltJson,
         legacyFabricJson,
         cleanroomJson
     ).forEach { json ->
@@ -183,6 +187,7 @@ private fun addLaunchForInfo(
     info.forge?.toLaunchForInfo()?.let { infos.add(it) }
     info.neoforge?.toLaunchForInfo()?.let { infos.add(it) }
     info.fabric?.toLaunchForInfo()?.let { infos.add(it) }
+    info.babric?.toLaunchForInfo()?.let { infos.add(it) }
     info.quilt?.toLaunchForInfo()?.let { infos.add(it) }
 
     val launchFor = LaunchFor(

@@ -20,16 +20,49 @@ package com.movtery.layer_controller.data
 
 import androidx.compose.ui.graphics.Color
 import com.movtery.layer_controller.observable.Modifiable
+import com.movtery.layer_controller.utils.ColorSerializer
 import com.movtery.layer_controller.utils.checkInRange
 import com.movtery.layer_controller.utils.randomUUID
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import java.io.File
 
 /**
  * 圆角比例取值范围
  */
 val SHAPE_PERCENT_RANGE: IntRange = 0..50
+
+private val joystickStyleJson = Json {
+    prettyPrint = true
+    ignoreUnknownKeys = true
+    serializersModule = SerializersModule {
+        contextual(Color::class, ColorSerializer)
+    }
+}
+
+/** Load a persisted launcher joystick style from JSON. */
+fun loadFromFile(file: File): JoystickStyle =
+    joystickStyleJson.decodeFromString(JoystickStyle.serializer(), file.readText())
+
+/** Persist a launcher joystick style using the same color encoding as control layouts. */
+fun saveToFile(style: JoystickStyle, file: File) {
+    val parent = file.parentFile ?: File(".")
+    parent.mkdirs()
+    val temporaryFile = File(parent, "${file.name}.tmp")
+    try {
+        temporaryFile.writeText(joystickStyleJson.encodeToString(JoystickStyle.serializer(), style))
+        if (!temporaryFile.renameTo(file)) {
+            temporaryFile.copyTo(file, overwrite = true)
+            temporaryFile.delete()
+        }
+    } catch (error: Exception) {
+        temporaryFile.delete()
+        throw error
+    }
+}
 
 /**
  * 大小比例计算取值范围

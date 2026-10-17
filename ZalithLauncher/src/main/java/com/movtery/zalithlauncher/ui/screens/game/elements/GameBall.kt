@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,9 +49,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.recorder.RecordingState
 import com.movtery.zalithlauncher.setting.enums.FpsDisplayMode
 import com.movtery.zalithlauncher.ui.components.FloatingBall
 import com.movtery.zalithlauncher.ui.screens.content.elements.MemoryPreview
@@ -68,8 +72,16 @@ fun DraggableGameBall(
     showMemory: Boolean,
     opened: Boolean,
     alpha: Float = 1f,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    recordingState: RecordingState = RecordingState.IDLE,
+    elapsedMs: Long = 0L,
+    onPauseRecording: () -> Unit = {},
+    onResumeRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {}
 ) {
+    val isRecordingActive = recordingState == RecordingState.RECORDING ||
+            recordingState == RecordingState.PAUSED
+
     FloatingBall(
         modifier = Modifier.focusProperties {
             canFocus = false
@@ -88,7 +100,78 @@ fun DraggableGameBall(
             fpsMin = fpsMin,
             showMemory = showMemory,
             opened = opened,
+            isRecordingActive = isRecordingActive,
+            isPaused = recordingState == RecordingState.PAUSED,
+            elapsedMs = elapsedMs,
+            onPauseRecording = onPauseRecording,
+            onResumeRecording = onResumeRecording,
+            onStopRecording = onStopRecording
         )
+    }
+}
+
+// Recording status controls adapted from TurboCraft-Launcher (GPL-3.0).
+@Composable
+private fun RecordingControlContent(
+    isPaused: Boolean,
+    elapsedMs: Long,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onStop: () -> Unit
+) {
+    Row(
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_fiber_manual_record),
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = if (isPaused) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            else Color.Red
+        )
+        Spacer(Modifier.width(3.dp))
+        Text(
+            text = elapsedMs.formatElapsedTime(),
+            style = MaterialTheme.typography.labelSmall
+        )
+        IconButton(
+            onClick = if (isPaused) onResume else onPause,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isPaused) R.drawable.ic_play_arrow_filled else R.drawable.ic_pause_filled
+                ),
+                contentDescription = stringResource(
+                    if (isPaused) R.string.recorder_resume else R.string.recorder_pause
+                ),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        IconButton(
+            onClick = onStop,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_stop_filled),
+                contentDescription = stringResource(R.string.recorder_stop_and_save),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+private fun Long.formatElapsedTime(): String {
+    val totalSeconds = this / 1000L
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%02d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
     }
 }
 
@@ -101,6 +184,12 @@ private fun GameBallContent(
     fpsMin: Int,
     showMemory: Boolean,
     opened: Boolean,
+    isRecordingActive: Boolean = false,
+    isPaused: Boolean = false,
+    elapsedMs: Long = 0L,
+    onPauseRecording: () -> Unit = {},
+    onResumeRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {}
 ) {
     val showFps = remember(gameFps) {
         gameFps != null
@@ -200,6 +289,20 @@ private fun GameBallContent(
             ) {
                 Spacer(Modifier.height(4.dp))
             }
+        }
+
+        AnimatedVisibility(
+            visible = isRecordingActive,
+            enter = expandIn(expandFrom = Alignment.CenterStart) + fadeIn(),
+            exit = shrinkOut(shrinkTowards = Alignment.CenterStart) + fadeOut()
+        ) {
+            RecordingControlContent(
+                isPaused = isPaused,
+                elapsedMs = elapsedMs,
+                onPause = onPauseRecording,
+                onResume = onResumeRecording,
+                onStop = onStopRecording
+            )
         }
     }
 }

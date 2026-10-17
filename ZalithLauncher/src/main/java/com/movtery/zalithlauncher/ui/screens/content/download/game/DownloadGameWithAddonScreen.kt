@@ -31,12 +31,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -53,11 +56,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.addons.modloader.cleanroom.CleanroomVersions
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.babric.BabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricAPIVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.legacyfabric.LegacyFabricAPIVersions
@@ -70,6 +75,8 @@ import com.movtery.zalithlauncher.game.addons.modloader.forgelike.neoforge.NeoFo
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersion
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersions
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
+import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager.isVersionExists
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
@@ -78,6 +85,7 @@ import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
+import com.movtery.zalithlauncher.ui.screens.content.elements.CommonVersionInfoLayout
 import com.movtery.zalithlauncher.ui.screens.content.elements.isFilenameInvalid
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -180,6 +188,12 @@ private class AddonsViewModel(
         { addonList.cleanroomList = it }
     )
 
+    fun reloadBabric() = launchAddonReload(
+        { currentAddon.babricState = it },
+        { BabricVersions.fetchBabricLoaderList(gameVersion) },
+        { addonList.babricList = it }
+    )
+
     private fun <T> launchAddonReload(
         updateState: (AddonState) -> Unit,
         fetch: suspend () -> T?,
@@ -210,6 +224,9 @@ private class AddonsViewModel(
         }
         if (loaderSupports.isCleanroomSupports) {
             reloadCleanroom()
+        }
+        if (loaderSupports.isBabricSupports) {
+            reloadBabric()
         }
     }
 
@@ -271,6 +288,7 @@ fun DownloadGameWithAddonScreen(
                         GameDownloadInfo(
                             gameVersion = key.gameVersion,
                             customVersionName = customVersionName,
+                            overwrite = isVersionExists(customVersionName, true),
                             optifine = viewModel.currentAddon.optifineVersion.value,
                             forge = viewModel.currentAddon.forgeVersion.value,
                             neoforge = viewModel.currentAddon.neoforgeVersion.value
@@ -288,7 +306,9 @@ fun DownloadGameWithAddonScreen(
                             quiltAPI = viewModel.currentAddon.quiltAPIVersion.value
                                 .takeIf { loaderSupports.isQuiltSupports },
                             cleanroom = viewModel.currentAddon.cleanroomVersion.value
-                                .takeIf { loaderSupports.isCleanroomSupports }
+                                .takeIf { loaderSupports.isCleanroomSupports },
+                            babric = viewModel.currentAddon.babricVersion.value
+                                .takeIf { loaderSupports.isBabricSupports }
                         )
                     )
                 }
@@ -526,6 +546,22 @@ fun DownloadGameWithAddonScreen(
                     }
                 }
 
+                if (loaderSupports.isBabricSupports) {
+                    AnimatedItem(scope) { yOffset ->
+                        BabricList(
+                            modifier = Modifier.offset {
+                                IntOffset(
+                                    x = 0,
+                                    y = yOffset.roundToPx()
+                                )
+                            },
+                            currentAddon = viewModel.currentAddon,
+                            onValueChanged = { viewModel.refreshIcon() },
+                            addonList = viewModel.addonList
+                        ) { viewModel.reloadBabric() }
+                    }
+                }
+
                 Spacer(Modifier)
             }
         }
@@ -567,18 +603,18 @@ private fun ScreenHeader(
             )
 
             val emptyError = stringResource(R.string.generic_cannot_empty)
-            val existsError = stringResource(R.string.versions_manage_install_exists)
+            val overwriteMessage = stringResource(R.string.download_game_version_overwrite, nameValue)
 
             val filenameInvalidMessage = key(nameValue) {
                 isFilenameInvalid(nameValue)
             }
-            //目标版本已存在时，阻止安装
-            val isVersionExists = remember(nameValue, refreshErrorCheck) {
+            val isVersionOverwrite = remember(nameValue) {
+                //如果目标版本存在，则使用覆盖安装的方式进行安装
                 isVersionExists(nameValue, true)
             }
 
             val isError = remember(nameValue, refreshErrorCheck) {
-                nameValue.isEmpty() || filenameInvalidMessage != null || isVersionExists
+                nameValue.isEmpty() || filenameInvalidMessage != null
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -612,18 +648,80 @@ private fun ScreenHeader(
                     }
                 )
 
-                if (isError) {
-                    val message = filenameInvalidMessage
-                        ?: (if (isVersionExists) existsError else emptyError)
+                if (isError || isVersionOverwrite) {
+                    val message = if (isError) {
+                        filenameInvalidMessage ?: emptyError
+                    } else {
+                        overwriteMessage
+                    }
 
                     Text(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp),
                         text = message,
-                        color = MaterialTheme.colorScheme.error,
+                        color = if (isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         style = MaterialTheme.typography.labelMedium
                     )
+                }
+            }
+
+            val versions by VersionsManager.versions.collectAsStateWithLifecycle()
+
+            if (versions.isNotEmpty()) {
+                Row {
+                    //不使用viewModel存储，防止版本刷新这里状态不同步
+                    var showMenu by remember { mutableStateOf(false) }
+                    //选择要覆盖安装的版本
+                    IconButton(
+                        onClick = {
+                            showMenu = true
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (showMenu) {
+                                    R.drawable.ic_menu_open
+                                } else {
+                                    R.drawable.ic_menu
+                                }
+                            ),
+                            contentDescription = stringResource(R.string.download_game_version_overwrite_select)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        //一个提醒用的Text
+                        Text(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            text = stringResource(R.string.download_game_version_overwrite_select_subtitle),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+
+                        versions.forEach { version ->
+                            DropdownMenuItem(
+                                text = {
+                                    CommonVersionInfoLayout(
+                                        modifier = Modifier.weight(1f),
+                                        version = version
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    //直接更新当前编辑的名称
+                                    nameValue = version.getVersionName()
+                                    editedByUser = true //也算是用户编辑了，不过目的是防止选择加载器被覆盖
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -664,6 +762,7 @@ private fun VersionIconPreview(
             currentAddon.legacyFabricVersion.value != null -> R.drawable.img_loader_legacy_fabric
             currentAddon.quiltVersion.value != null -> R.drawable.img_loader_quilt
             currentAddon.cleanroomVersion.value != null -> R.drawable.img_loader_cleanroom
+            currentAddon.babricVersion.value != null -> R.drawable.img_loader_fabric
             else -> R.drawable.img_minecraft
         }
     }
@@ -694,6 +793,7 @@ private fun AutoChangeVersionName(
         currentAddon.legacyFabricVersion.value,
         currentAddon.quiltVersion.value,
         currentAddon.cleanroomVersion.value,
+        currentAddon.babricVersion.value,
     ) {
         if (editedByUser) return@LaunchedEffect
 
@@ -716,6 +816,7 @@ private fun AutoChangeVersionName(
                     legacyFabricVersion.value != null -> append(formatModloader(ModLoader.LEGACY_FABRIC.displayName, legacyFabricVersion.value!!.version))
                     quiltVersion.value != null -> append(formatModloader(ModLoader.QUILT.displayName, quiltVersion.value!!.version))
                     cleanroomVersion.value != null -> append(formatModloader(ModLoader.CLEANROOM.displayName, cleanroomVersion.value!!.version))
+                    babricVersion.value != null -> append(formatModloader(ModLoader.BABRIC.displayName, babricVersion.value!!.version))
                     else -> {
                         changeValue(gameVersion)
                         return@LaunchedEffect

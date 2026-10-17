@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.setting
 
 import android.os.Build
 import androidx.compose.ui.geometry.Offset
+import com.movtery.layer_controller.data.POSITION_RANGE
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.materialkolor.PaletteStyle
@@ -31,10 +32,12 @@ import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
 import com.movtery.zalithlauncher.setting.enums.ActionMenuSide
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
 import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
+import com.movtery.zalithlauncher.setting.enums.ChromaMode
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.FpsDisplayMode
 import com.movtery.zalithlauncher.setting.enums.GamepadInputMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
+import com.movtery.zalithlauncher.setting.enums.HomePageType
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
 import com.movtery.zalithlauncher.setting.enums.ResolutionRule
@@ -424,7 +427,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器背景元素不透明度
      */
-    val launcherBackgroundOpacity = intSetting("launcherBackgroundOpacity", 80, 20..100)
+    val launcherBackgroundOpacity = intSetting("launcherBackgroundOpacity", 20, 20..100)
 
     /**
      * 启动器视频背景音量
@@ -434,7 +437,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 启动器背景模糊效果
      */
-    val backgroundBlur = intSetting("backgroundBlur", 0, 0..40)
+    val backgroundBlur = intSetting("backgroundBlur", 3, 3..40)
 
     /**
      * 启动器背景模糊效果类型
@@ -625,4 +628,191 @@ object AllSettings : SettingsRegistry() {
      * 搜索光影的初始搜索平台
      */
     val searchShadersPlatform = enumSetting("searchShadersPlatform", Platform.CURSEFORGE)
+
+    // Settings introduced with the TurboCraft feature/UI port.
+    /**
+     * Turnip 驱动下载源（GitHub owner/repo）
+     */
+    val turnipRepo = stringSetting("turnipRepo", "K11MCH1/AdrenoToolsDrivers")
+
+    /**
+     * Kopper Zink uyarısını bir daha gösterme
+     */
+    val surfaceViewKopperWarningDontShow = boolSetting("surfaceViewKopperWarningDontShow", false)
+
+    /**
+     * 帧生成（交换链帧加倍）
+     */
+    val frameGeneration = boolSetting("frameGeneration", false)
+
+    /**
+     * 启用帧率上限
+     */
+    val fpsLimitEnabled = boolSetting("fpsLimitEnabled", false)
+
+    /**
+     * 帧率上限
+     */
+    val fpsLimit = intSetting("fpsLimit", 60, 15..240)
+
+    /**
+     * 强制在高性能核心运行
+     */
+    val bigCoreAffinity = boolSetting("bigCoreAffinity", false)
+
+    /**
+     * 自动内存分配
+     */
+    val autoRamAllocation = boolSetting("autoRamAllocation", false)
+
+    /**
+     * 游戏加载时隐藏控制布局
+     */
+    val hideControlsDuringLoading = boolSetting("hideControlsDuringLoading", true)
+
+    /**
+     * 禁用加载弹出提示
+     */
+    val disableLoadingPopup = boolSetting("disableLoadingPopup", false)
+
+    /**
+     * 启动器主页类型
+     */
+    val homePageType = enumSetting("homePageType", HomePageType.Blank)
+
+    /**
+     * 启动器网络主页下载地址
+     */
+    val homePageURL = stringSetting("homePageURL", "")
+
+    /**
+     * 下载版本附加内容镜像源类型
+     */
+    val fetchModLoaderSource = enumSetting("fetchModLoaderSource", MirrorSourceType.OFFICIAL)
+
+    /**
+     * 文件下载镜像源类型
+     */
+    val fileDownloadSource = enumSetting("fileDownloadSource", MirrorSourceType.OFFICIAL)
+
+    /**
+     * 资源搜索镜像源类型
+     */
+    val assetSearchSource = enumSetting("assetSearchSource", MirrorSourceType.OFFICIAL)
+
+    /**
+     * 资源下载镜像源类型
+     */
+    val assetDownloadSource = enumSetting("assetDownloadSource", MirrorSourceType.OFFICIAL)
+
+    /**
+     * 是否使用旧版版本选择器（仅正式版，无搜索框）
+     */
+    val classicVersionPicker = boolSetting("classicVersionPicker", true)
+
+    /**
+     * 是否在游戏中启用摇杆移动组件
+     */
+    val enableJoystickControl = boolSetting("enableJoystickControl", false)
+
+    /**
+     * 游戏中摇杆移动组件的 X 坐标 0~10000
+     */
+    val joystickControlX = intSetting("joystickControlX", 5000, POSITION_RANGE)
+
+    /**
+     * 游戏中摇杆移动组件的 Y 坐标 0~10000
+     */
+    val joystickControlY = intSetting("joystickControlY", 5000, POSITION_RANGE)
+
+    /**
+     * 游戏中摇杆移动组件的大小 Dp
+     */
+    val joystickControlSize = intSetting("joystickControlSize", 120, 80..180)
+
+    /**
+     * 游戏中摇杆移动组件是否使用控制布局提供的样式
+     */
+    val joystickUseStyleByLayout = boolSetting("joystickUseStyleByLayout", true)
+
+    /**
+     * 游戏中摇杆移动组件是否在使用实体鼠标时隐藏
+     */
+    val joystickHideWhenMouse = boolSetting("joystickHideWhenMouse", true)
+
+    /**
+     * 游戏中摇杆移动组件是否在使用手柄时隐藏
+     */
+    val joystickHideWhenGamepad = boolSetting("joystickHideWhenGamepad", true)
+
+    /**
+     * 摇杆组件死区缩放
+     */
+    val joystickDeadZoneRatio = intSetting("joystickDeadZoneRatio", 30, 10..50)
+
+    /**
+     * 摇杆前进锁判定范围
+     */
+    val joystickLockThreshold = intSetting("joystickLockThreshold", 30, 5..100)
+
+    /**
+     * 游戏中摇杆移动组件是否可锁定
+     */
+    val joystickControlCanLock = boolSetting("joystickControlCanLock", true)
+
+    /**
+     * 游戏中摇杆移动组件在前进锁定时，是否强制疾跑
+     */
+    val joystickControlLockSpring = boolSetting("joystickControlLockSpring", true)
+
+    /**
+     * 是否已接受非官方声明
+     */
+    val disclaimerAccepted = boolSetting("disclaimerAccepted", false)
+
+    /**
+     * 玩家在模拟器中运行游戏的总时长（毫秒）
+     */
+    val playTime = longSetting("playTime", 0L)
+
+    /**
+     * 彩虹（Chroma）用户名特效模式
+     */
+    val chromaMode = enumSetting("chromaMode", ChromaMode.NONE)
+
+    /**
+     * 是否显示设置导出/导入提示
+     */
+    val showSettingsTip = boolSetting("showSettingsTip", true)
+
+    /**
+     * 搜索模组时保存的过滤器状态（JSON）
+     */
+    val searchModFilter = stringSetting("searchModFilter", "")
+
+    /**
+     * 搜索整合包时保存的过滤器状态（JSON）
+     */
+    val searchModpackFilter = stringSetting("searchModpackFilter", "")
+
+    /**
+     * 搜索资源包时保存的过滤器状态（JSON）
+     */
+    val searchResourcePackFilter = stringSetting("searchResourcePackFilter", "")
+
+    /**
+     * 搜索光影时保存的过滤器状态（JSON）
+     */
+    val searchShadersFilter = stringSetting("searchShadersFilter", "")
+
+    /**
+     * 搜索存档时保存的过滤器状态（JSON）
+     */
+    val searchSavesFilter = stringSetting("searchSavesFilter", "")
+
+    /**
+     * 在下载页面显示快照版本（snapshot/old/aprilfools等）
+     */
+    val showSnapshotVersions = boolSetting("showSnapshotVersions", false)
+
 }

@@ -22,6 +22,7 @@ import android.os.Parcelable
 import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.movtery.zalithlauncher.game.account.wardrobe.AccountCapeCollection
 import com.movtery.zalithlauncher.game.account.wardrobe.CapeFileDownloader
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinFileDownloader
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
@@ -32,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.parcelize.Parcelize
 import org.apache.commons.io.FileUtils
 import java.io.File
@@ -39,6 +41,7 @@ import java.util.UUID
 
 private const val TAG = "Account"
 
+@Serializable
 @Keep
 @Parcelize
 @Entity(tableName = "accounts")
@@ -64,9 +67,24 @@ data class Account(
     val hasSkinFile: Boolean
         get() = getSkinFile().exists()
 
+    val hasCapeFile: Boolean
+        get() = getSelectedCapeFile() != null
+
     fun getSkinFile() = File(PathManager.DIR_ACCOUNT_SKIN, "$uniqueUUID.png")
 
     fun getCapeFile() = File(PathManager.DIR_ACCOUNT_CAPE, "$uniqueUUID.png")
+
+    /**
+     * Returns the active cape from the account's collection, falling back to the legacy cape file
+     * only when the collection has not been initialized.
+     */
+    fun getSelectedCapeFile(): File? {
+        return if (AccountCapeCollection.hasManifest(uniqueUUID)) {
+            AccountCapeCollection.getActiveCapeFile(uniqueUUID)
+        } else {
+            getCapeFile().takeIf { it.isFile }
+        }
+    }
 
     private fun getTempSkinFile() = File(PathManager.DIR_CACHE, "account_skin_${uniqueUUID}.tmp.png")
     private fun getTempCapeFile() = File(PathManager.DIR_CACHE, "account_cape_${uniqueUUID}.tmp.png")

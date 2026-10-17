@@ -48,6 +48,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -83,13 +84,12 @@ import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskLogOutput
 import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.coroutine.TitledTask
+import com.movtery.zalithlauncher.ui.components.TaskLogCard
 import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.MarqueeText
-import com.movtery.zalithlauncher.ui.components.TaskLogCard
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -298,9 +298,7 @@ fun ImportSingleFileButton(
     progressUris: (uris: List<Uri>) -> Unit,
     modifier: Modifier = Modifier,
     painter: Painter = painterResource(R.drawable.ic_add),
-    text: String = stringResource(R.string.generic_import),
-    onClick: () -> Unit = {},
-    onLongClick: ((launch: () -> Unit) -> Unit)? = null
+    text: String = stringResource(R.string.generic_import)
 ) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -313,18 +311,10 @@ fun ImportSingleFileButton(
     IconTextButton(
         modifier = modifier,
         onClick = {
-            onClick()
             launcher.launch(extension.extensionToMimeType())
         },
         painter = painter,
-        text = text,
-        onLongClick = {
-            if (onLongClick != null) {
-                onLongClick { launcher.launch(extension.extensionToMimeType()) }
-            } else {
-                launcher.launch(extension.extensionToMimeType())
-            }
-        }
+        text = text
     )
 }
 
@@ -357,31 +347,24 @@ fun TitleTaskFlowDialog(
     title: String,
     tasks: List<TitledTask>,
     onCancel: () -> Unit = {},
+    onMinimize: (() -> Unit)? = null,
     logOutput: TaskLogOutput? = null
 ) {
     Dialog(
         onDismissRequest = {},
         properties = DialogProperties(
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = logOutput == null
+            dismissOnClickOutside = false
         )
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 6.dp)
-                    .heightIn(max = (maxHeight - 12.dp).coerceAtMost(rememberDialogMaxHeight()))
-                    .wrapContentHeight()
-                    .then(
-                        if (logOutput != null) {
-                            Modifier.fillMaxWidth(0.8f)
-                        } else Modifier
-                    ),
+                    .heightIn(max = maxHeight - 12.dp)
+                    .wrapContentHeight(),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = cardColor(false),
                 contentColor = onCardColor(),
@@ -389,77 +372,62 @@ fun TitleTaskFlowDialog(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (logOutput == null) {
-                        TaskFlowListColumn(
-                            title = title,
-                            tasks = tasks,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                    } else {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            TaskFlowListColumn(
-                                title = title,
-                                tasks = tasks,
-                                modifier = Modifier.weight(1f)
-                            )
-                            TaskLogCard(
-                                logOutput = logOutput,
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    val scrollState = rememberLazyListState()
+                    LazyColumn(
+                        modifier = Modifier
+                            .fadeEdge(state = scrollState)
+                            .weight(1f, fill = false),
+                        state = scrollState
+                    ) {
+                        items(tasks) { task ->
+                            InstallingTaskItem(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                title = task.title,
+                                runningIcon = task.runningIcon,
+                                task = task.task
                             )
                         }
                     }
 
-                    Button(
+                    logOutput?.let { output ->
+                        TaskLogCard(
+                            logOutput = output,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                        )
+                    }
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = onCancel
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MarqueeText(text = stringResource(R.string.generic_cancel))
+                        if (onMinimize != null) {
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = onMinimize
+                            ) {
+                                MarqueeText(text = stringResource(R.string.generic_minimize))
+                            }
+                        }
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = onCancel
+                        ) {
+                            MarqueeText(text = stringResource(R.string.generic_cancel))
+                        }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskFlowListColumn(
-    title: String,
-    tasks: List<TitledTask>,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        val scrollState = rememberLazyListState()
-        LazyColumn(
-            modifier = Modifier
-                .fadeEdge(state = scrollState)
-                .weight(1f, fill = false),
-            state = scrollState
-        ) {
-            items(tasks) { task ->
-                InstallingTaskItem(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    title = task.title,
-                    runningIcon = task.runningIcon,
-                    task = task.task
-                )
             }
         }
     }

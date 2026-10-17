@@ -19,11 +19,13 @@
 package com.movtery.zalithlauncher.ui.screens.content.download.assets.download
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -62,39 +63,32 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.download.assets.favorites.FavoriteProjectsRepository
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformProject
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
-import com.movtery.zalithlauncher.game.download.assets.platform.cacheKey
 import com.movtery.zalithlauncher.game.download.assets.platform.getProject
-import com.movtery.zalithlauncher.game.download.assets.platform.getVersionById
 import com.movtery.zalithlauncher.game.download.assets.platform.getVersions
 import com.movtery.zalithlauncher.game.download.assets.platform.isAllNull
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
-import com.movtery.zalithlauncher.game.version.mod.InstalledMod
-import com.movtery.zalithlauncher.game.versioninfo.filterRelease
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
+import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.base.BaseScreen
+import com.movtery.zalithlauncher.ui.AndroidStringText
+import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CheckChip
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.ShimmerBox
-import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.AssetsIcon
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.AssetsVersionItemLayout
-import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ClassesIdentifier
-import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DependencyEntry
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsState
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsVersionLoading
-import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.FavoriteIdentifier
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ProjectUrlsContent
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ScreenshotItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.VersionInfoMap
@@ -104,7 +98,6 @@ import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import io.ktor.client.plugins.ClientRequestException
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
@@ -117,31 +110,20 @@ import kotlin.time.Duration.Companion.milliseconds
 private class DownloadScreenViewModel(
     private val platform: Platform,
     private val projectId: String,
-    initialClasses: PlatformClasses
+    private val classes: PlatformClasses
 ): ViewModel() {
-    /**
-     * 资源类型，优先使用项目详情返回的准确类型
-     */
-    var classes by mutableStateOf(initialClasses)
-        private set
-
     //版本
     private var _versionsList by mutableStateOf<List<VersionInfoMap>>(emptyList())
-    //未经映射的原始版本数据，类型修正后用于重新映射
-    private var rawVersions: List<PlatformVersion> = emptyList()
     var versionsResult by mutableStateOf<DownloadAssetsState<List<VersionInfoMap>>>(DownloadAssetsState.Getting())
     var versionsLoading by mutableStateOf<DownloadAssetsVersionLoading>(DownloadAssetsVersionLoading.None)
         private set
+    /** 当前正在加载的依赖项目 */
+    val loadingProjects = mutableStateListOf<String>()
 
-    var showOnlyMCRelease by mutableStateOf(true)
-    var searchMCVersion by mutableStateOf("")
+    var selectedGameVersion by mutableStateOf<String?>(null)
 
-    fun filterWith(
-        showOnlyMCRelease: Boolean = this.showOnlyMCRelease,
-        searchMCVersion: String = this.searchMCVersion
-    ) {
-        this.showOnlyMCRelease = showOnlyMCRelease
-        this.searchMCVersion = searchMCVersion
+    fun filterWith(selectedGameVersion: String? = this.selectedGameVersion) {
+        this.selectedGameVersion = selectedGameVersion
         viewModelScope.launch {
             versionsLoading = DownloadAssetsVersionLoading.None
             val infos = _versionsList.filterInfos()
@@ -151,25 +133,13 @@ private class DownloadScreenViewModel(
 
     private fun List<VersionInfoMap>.filterInfos(): List<VersionInfoMap> {
         return filter { info ->
-            (!showOnlyMCRelease || filterRelease(info.gameVersion)) &&
-                    (searchMCVersion.isEmpty() || info.gameVersion.contains(searchMCVersion, true))
+            selectedGameVersion == null || info.gameVersion == selectedGameVersion
         }
-    }
-
-    /**
-     * 类型修正后，使用原始版本数据重新映射版本列表
-     */
-    private fun remapVersions() {
-        if (rawVersions.isEmpty()) return
-        _versionsList = rawVersions.mapWithVersions(classes)
-        versionsResult = DownloadAssetsState.Success(_versionsList.filterInfos())
     }
 
     fun getVersions() {
         viewModelScope.launch {
             versionsResult = DownloadAssetsState.Getting()
-            //重新加载时重试此前获取失败的依赖项目
-            failedDependencyProjects.clear()
             if (platform == Platform.CURSEFORGE) {
                 versionsLoading = DownloadAssetsVersionLoading.StartLoadPage
             }
@@ -181,33 +151,42 @@ private class DownloadScreenViewModel(
                     versionsLoading = DownloadAssetsVersionLoading.LoadingPage(chunk, page)
                 },
                 onSuccess = { result ->
-                    val versions: List<PlatformVersion> = result.initAll(projectId)
-                    rawVersions = versions
+                    val versions: List<PlatformVersion> = result.initAll(projectId) also@{ version ->
+                        if (classes == PlatformClasses.MOD_PACK) return@also //整合包不支持获取依赖
+                        val dependencies = version.platformDependencies()
+                        if (dependencies.isEmpty()) return@also
 
-                    //版本列表先行展示，依赖项目信息改为后台缓存，不再阻塞列表加载
-                    _versionsList = versions.mapWithVersions(classes)
-                    versionsResult = DownloadAssetsState.Success(_versionsList.filterInfos())
-                    versionsLoading = DownloadAssetsVersionLoading.None
+                        loadingProjects.clear()
+                        versionsLoading = DownloadAssetsVersionLoading.LoadingDepProject
 
-                    if (classes == PlatformClasses.MOD_PACK) return@getVersions
-                    val dependencies = versions
-                        .flatMap { it.platformDependencies() }
-                        .distinctBy { it.cacheKey() }
-                    if (dependencies.isEmpty()) return@getVersions
-
-                    viewModelScope.launch {
                         val semaphore = Semaphore(8)
-                        dependencies.map { dependency ->
+                        val jobs = dependencies.map { dependency ->
                             async {
+                                val dependencyProjectId = dependency.projectId
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: return@async
                                 semaphore.withPermit {
                                     cacheDependencyProject(
-                                        platform = dependency.platform,
-                                        dependency = dependency
+                                        platform = version.platform(),
+                                        projectId = dependencyProjectId,
+                                        onLoading = {
+                                            if (!loadingProjects.contains(dependencyProjectId)) {
+                                                loadingProjects.add(dependencyProjectId)
+                                            }
+                                        },
+                                        onEnd = {
+                                            loadingProjects.remove(dependencyProjectId)
+                                        }
                                     )
                                 }
                             }
-                        }.awaitAll()
+                        }
+
+                        jobs.awaitAll()
                     }
+                    _versionsList = versions.mapWithVersions(classes)
+                    versionsResult = DownloadAssetsState.Success(_versionsList.filterInfos())
+                    versionsLoading = DownloadAssetsVersionLoading.None
                 },
                 onError = {
                     versionsResult = it
@@ -227,12 +206,6 @@ private class DownloadScreenViewModel(
                 projectID = projectId,
                 platform = platform,
                 onSuccess = { result ->
-                    //以项目详情返回的类型为准
-                    val accurateClasses = result.platformClasses(classes)
-                    if (accurateClasses != classes) {
-                        classes = accurateClasses
-                        remapVersions()
-                    }
                     val mod = classes.getTranslations()
                     val mcmod = mod.getModBySlugId(result.platformSlug())
                     projectResult = DownloadAssetsState.Success(Triple(result, mod, mcmod))
@@ -250,51 +223,35 @@ private class DownloadScreenViewModel(
     //就会进行很多次无效的访问，非常耗时
     //需要记录不存在的依赖项目的id，避免下次继续获取
     val notFoundDependencyProjects = mutableStateListOf<String>()
-    //依赖项目信息获取失败，在对话框里展示占位项
-    val failedDependencyProjects = mutableStateListOf<String>()
 
     /**
      * 缓存依赖项目
      */
     private suspend fun cacheDependencyProject(
         platform: Platform,
-        dependency: PlatformVersion.PlatformDependency
+        projectId: String,
+        onLoading: () -> Unit,
+        onEnd: () -> Unit
     ) {
-        val key = dependency.cacheKey()
-        if (notFoundDependencyProjects.contains(key) || cachedDependencyProject.containsKey(key)) return
-
-        try {
-            val projectId = dependency.projectId ?: run {
-                //依赖只标注了精确版本，先通过版本反查其所属项目
-                getVersionById(
-                    versionId = dependency.versionId
-                        ?: error("The dependency does not provide a project id or a version id."),
-                    platform = platform,
-                    printLog = false
-                ).platformProjectId()
-            }
+        if (!notFoundDependencyProjects.contains(projectId) && !cachedDependencyProject.containsKey(projectId)) {
+            onLoading()
             getProject<PlatformProject>(
                 projectID = projectId,
                 platform = platform,
                 onSuccess = { result ->
-                    cachedDependencyProject[key] = result
+                    cachedDependencyProject[projectId] = result
+                    onEnd()
                 },
                 onError = { _, e ->
-                    if (e.isNotFound()) {
-                        notFoundDependencyProjects.add(key)
+                    if (e is ClientRequestException && e.response.status.value == 404) {
+                        // 404 Not Found
+                        notFoundDependencyProjects.add(projectId)
                     } else {
-                        if (!failedDependencyProjects.contains(key)) failedDependencyProjects.add(key)
+                        cachedDependencyProject.remove(projectId)
                     }
+                    onEnd()
                 }
             )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            if (e.isNotFound()) {
-                notFoundDependencyProjects.add(key)
-            } else {
-                if (!failedDependencyProjects.contains(key)) failedDependencyProjects.add(key)
-            }
         }
     }
 
@@ -309,12 +266,6 @@ private class DownloadScreenViewModel(
     }
 }
 
-/**
- * 平台的接口是否返回了未找到
- */
-private fun Throwable.isNotFound(): Boolean =
-    this is ClientRequestException && response.status.value == 404
-
 @Composable
 private fun rememberDownloadAssetsViewModel(
     key: NormalNavKey.DownloadAssets
@@ -325,7 +276,7 @@ private fun rememberDownloadAssetsViewModel(
         DownloadScreenViewModel(
             platform = key.platform,
             projectId = key.projectId,
-            initialClasses = key.classes
+            classes = key.classes
         )
     }
 }
@@ -334,7 +285,6 @@ private fun rememberDownloadAssetsViewModel(
  * @param parentScreenKey 父屏幕Key
  * @param parentCurrentKey 父屏幕当前Key
  * @param currentKey 当前的Key
- * @param installedChecker 查询版本本地是否已安装，null 则不进行已安装标注
  */
 @Composable
 fun DownloadAssetsScreen(
@@ -344,11 +294,10 @@ fun DownloadAssetsScreen(
     currentKey: TitledNavKey?,
     key: NormalNavKey.DownloadAssets,
     eventViewModel: EventViewModel,
-    onItemClicked: (PlatformClasses, PlatformVersion, iconUrl: String?, deps: List<DependencyEntry>) -> Unit,
+    onItemClicked: (PlatformClasses, PlatformVersion, iconUrl: String?, deps: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>) -> Unit,
     nestedNavKeyClass: Class<out TitledNavKey>? = null,
     versionsUIWeight: Float = 6.5f,
     projectUIWeight: Float = 3.5f,
-    installedChecker: ((PlatformVersion) -> InstalledMod?)? = null,
 ) {
     val viewModel: DownloadScreenViewModel = rememberDownloadAssetsViewModel(key)
 
@@ -369,23 +318,14 @@ fun DownloadAssetsScreen(
                     .fillMaxHeight()
                     .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
                 viewModel = viewModel,
-                installedChecker = installedChecker,
                 onReload = { viewModel.getVersions() },
                 onItemClicked = { version ->
                     val deps = version.platformDependencies().mapNotNull { dep ->
-                        val key = dep.cacheKey()
-                        val project = viewModel.cachedDependencyProject[key]
-                        when {
-                            project != null -> DependencyEntry(dep, project)
-                            viewModel.notFoundDependencyProjects.contains(key) ->
-                                DependencyEntry(dep, null, notFound = true)
-                            viewModel.failedDependencyProjects.contains(key) ->
-                                DependencyEntry(dep, null)
-                            //依赖项目信息仍在获取中
-                            else -> null
+                        dep.projectId?.let { projectId ->
+                            viewModel.cachedDependencyProject[projectId]?.let { dep to it }
                         }
                     }
-                    onItemClicked(viewModel.classes, version, key.iconUrl, deps)
+                    onItemClicked(key.classes, version, key.iconUrl, deps)
                 },
             )
 
@@ -402,9 +342,7 @@ fun DownloadAssetsScreen(
                     .padding(end = 12.dp)
                     .offset { IntOffset(x = xOffset.roundToPx(), y = 0) },
                 projectResult = viewModel.projectResult,
-                platform = key.platform,
-                projectId = key.projectId,
-                classes = viewModel.classes,
+                defaultClasses = key.classes,
                 onReload = { viewModel.getProject() },
                 openLink = { url ->
                     eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
@@ -421,7 +359,6 @@ fun DownloadAssetsScreen(
 private fun Versions(
     modifier: Modifier = Modifier,
     viewModel: DownloadScreenViewModel,
-    installedChecker: ((PlatformVersion) -> InstalledMod?)? = null,
     onReload: () -> Unit = {},
     onItemClicked: (PlatformVersion) -> Unit = {}
 ) {
@@ -448,6 +385,15 @@ private fun Versions(
                                     textAlign = TextAlign.Center
                                 )
                             }
+                            is DownloadAssetsVersionLoading.LoadingDepProject -> {
+                                val ids = viewModel.loadingProjects.joinToString(", ")
+                                Text(
+                                    text = stringResource(R.string.download_assets_loading_dep_project, ids),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                             is DownloadAssetsVersionLoading.LoadingPage -> {
                                 Text(
                                     text = stringResource(R.string.download_assets_loaded_chunk_page, state.chunk, state.page),
@@ -467,37 +413,45 @@ private fun Versions(
         }
         is DownloadAssetsState.Success -> {
             Column(modifier = modifier) {
-                //简单过滤条件
+                //简单过滤条件：选择游戏版本
+                val installedVersions = remember {
+                    VersionsManager.versions.value.mapNotNull { it.getVersionInfo()?.minecraftVersion }.distinct().sorted()
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CheckChip(
-                        selected = viewModel.showOnlyMCRelease,
+                        selected = viewModel.selectedGameVersion == null,
                         onClick = {
-                            viewModel.filterWith(showOnlyMCRelease = viewModel.showOnlyMCRelease.not())
+                            viewModel.filterWith(null)
                         },
                         label = {
-                            Text(text = stringResource(R.string.download_assets_show_only_mc_release))
-                        },
-                    )
-
-                    SimpleTextInputField(
-                        modifier = Modifier.weight(1f),
-                        value = viewModel.searchMCVersion,
-                        onValueChange = { viewModel.filterWith(searchMCVersion = it) },
-                        singleLine = true,
-                        textStyle = TextStyle(color = onCardColor()).copy(fontSize = 12.sp),
-                        hint = {
-                            Text(
-                                text = stringResource(R.string.download_assets_search_mc_versions),
-                                style = TextStyle(color = onCardColor()).copy(fontSize = 12.sp)
-                            )
+                            Text(text = stringResource(R.string.generic_all))
                         }
                     )
+                    val scrollState = rememberScrollState()
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(scrollState),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        installedVersions.forEach { version ->
+                            CheckChip(
+                                selected = viewModel.selectedGameVersion == version,
+                                onClick = {
+                                    viewModel.filterWith(version)
+                                },
+                                label = {
+                                    Text(text = version)
+                                }
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider(
@@ -528,16 +482,12 @@ private fun Versions(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     state = scrollState
                 ) {
-                    items(
-                        items = versions.result,
-                        key = { "${it.gameVersion}_${it.loader?.getDisplayName()}" }
-                    ) { info ->
+                    items(versions.result) { info ->
                         AssetsVersionItemLayout(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp),
                             infoMap = info,
-                            installedChecker = installedChecker,
                             onItemClicked = onItemClicked
                         )
                     }
@@ -550,10 +500,10 @@ private fun Versions(
                     modifier = Modifier.align(Alignment.Center),
                     text = {
                         AndroidStringText(
-                            text = androidText(
-                                R.string.download_assets_failed_to_get_versions,
-                                versions.message
-                            )
+                            text = buildAppendedText {
+                                append(R.string.download_assets_failed_to_get_versions)
+                                append(versions.message)
+                            }
                         )
                     },
                     onClick = onReload
@@ -570,9 +520,7 @@ private fun Versions(
 private fun ProjectInfo(
     modifier: Modifier = Modifier,
     projectResult: DownloadAssetsState<Triple<PlatformProject, ModTranslations, ModTranslations.McMod?>>,
-    platform: Platform,
-    projectId: String,
-    classes: PlatformClasses,
+    defaultClasses: PlatformClasses,
     onReload: () -> Unit = {},
     openLink: (url: String) -> Unit = {}
 ) {
@@ -581,184 +529,151 @@ private fun ProjectInfo(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge
     ) {
-        Box(modifier = Modifier) {
-            when (projectResult) {
-                is DownloadAssetsState.Getting -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(all = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        //图标、标题、简介的骨架
-                        item {
-                            Column(
+        when (val result = projectResult) {
+            is DownloadAssetsState.Getting -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(all = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    //图标、标题、简介的骨架
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            ShimmerBox(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .clip(shape = RoundedCornerShape(10.dp))
+                                    .size(72.dp)
+                            )
+                            Column(
+                                modifier = Modifier.padding(top = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                //标题
                                 ShimmerBox(
                                     modifier = Modifier
-                                        .clip(shape = RoundedCornerShape(10.dp))
-                                        .size(72.dp)
+                                        .fillMaxWidth(0.6f)
+                                        .height(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
                                 )
-                                Column(
-                                    modifier = Modifier.padding(top = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    //标题
-                                    ShimmerBox(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.6f)
-                                            .height(20.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                    )
-                                    //简介
-                                    ShimmerBox(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.9f)
-                                            .height(16.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                    )
-                                }
+                                //简介
+                                ShimmerBox(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .height(16.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                )
                             }
                         }
                     }
                 }
-                is DownloadAssetsState.Success -> {
-                    val (project, mod, mcmod) = projectResult.result
-                    //项目基本信息
-                    val platform = remember { project.platform() }
-                    val iconUrl = remember { project.platformIconUrl() }
-                    val title = remember { project.platformTitle() }
-                    val summary = remember { project.platformSummary() }
-                    val urls = remember(classes) { project.platformUrls(classes) }
-                    val screenshots = remember { project.platformScreenshots() }
+            }
+            is DownloadAssetsState.Success -> {
+                val (project, mod, mcmod) = result.result
+                //项目基本信息
+                val platform = remember { project.platform() }
+                val iconUrl = remember { project.platformIconUrl() }
+                val title = remember { project.platformTitle() }
+                val summary = remember { project.platformSummary() }
+                val urls = remember { project.platformUrls(defaultClasses) }
+                val screenshots = remember { project.platformScreenshots() }
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(all = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        //图标、标题、简介
-                        item {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(all = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    //图标、标题、简介
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            AssetsIcon(
+                                modifier = Modifier.clip(shape = RoundedCornerShape(10.dp)),
+                                size = 72.dp,
+                                iconUrl = iconUrl
+                            )
+                            //标题、简介
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier.padding(top = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                AssetsIcon(
-                                    modifier = Modifier.clip(shape = RoundedCornerShape(10.dp)),
-                                    size = 72.dp,
-                                    iconUrl = iconUrl
+                                Text(
+                                    text = mcmod.getMcmodTitle(title, context),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center
                                 )
-                                //标题、简介
-                                Column(
-                                    modifier = Modifier.padding(top = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
+                                summary?.let { summary ->
                                     Text(
-                                        text = mcmod.getMcmodTitle(title, context),
-                                        style = MaterialTheme.typography.titleMedium,
+                                        text = summary,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         textAlign = TextAlign.Center
                                     )
-                                    summary?.let { summary ->
-                                        Text(
-                                            text = summary,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
                                 }
                             }
-                        }
-
-                        //相关链接
-                        if (!urls.isAllNull()) {
-                            item {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.download_assets_links),
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-
-                                    ProjectUrlsContent(
-                                        platform = platform,
-                                        urls = urls,
-                                        mcmod = mcmod,
-                                        mod = mod,
-                                        openLink = openLink,
-                                    )
-                                }
-                            }
-                        }
-
-                        //屏幕截图
-                        items(screenshots) { screenshot ->
-                            ScreenshotItemLayout(
-                                modifier = Modifier.fillMaxWidth(),
-                                screenshot = screenshot
-                            )
                         }
                     }
-                }
-                is DownloadAssetsState.Error -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(all = 12.dp)
-                    ) {
-                        ScalingLabel(
-                            modifier = Modifier.align(Alignment.Center),
-                            text = {
-                                AndroidStringText(
-                                    text = androidText(
-                                        R.string.download_assets_failed_to_get_project,
-                                        projectResult.message
-                                    )
+
+                    //相关链接
+                    if (!urls.isAllNull()) {
+                        item {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.download_assets_links),
+                                    style = MaterialTheme.typography.titleMedium
                                 )
-                            },
-                            onClick = onReload
+
+                                ProjectUrlsContent(
+                                    platform = platform,
+                                    urls = urls,
+                                    mcmod = mcmod,
+                                    mod = mod,
+                                    openLink = openLink,
+                                )
+                            }
+                        }
+                    }
+
+                    //屏幕截图
+                    items(screenshots) { screenshot ->
+                        ScreenshotItemLayout(
+                            modifier = Modifier.fillMaxWidth(),
+                            screenshot = screenshot
                         )
                     }
                 }
             }
-
-            // 资源类型、收藏开关
-            Row(
-                modifier = Modifier.padding(all = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ClassesIdentifier(
-                    classes = classes,
-                    iconSize = 16.dp,
-                    textStyle = MaterialTheme.typography.labelMedium
-                )
-
-                val isFavorite = FavoriteProjectsRepository.isFavorite(platform, projectId)
-                FavoriteIdentifier(
-                    isFavorite = isFavorite,
-                    iconSize = 16.dp,
-                    textStyle = MaterialTheme.typography.labelMedium,
-                    onClick = {
-                        if (isFavorite) {
-                            FavoriteProjectsRepository.unfavorite(platform, projectId)
-                        } else {
-                            //项目数据未就绪时无法生成收藏缓存，忽略此次操作
-                            (projectResult as? DownloadAssetsState.Success)
-                                ?.result?.first?.let { project ->
-                                    FavoriteProjectsRepository.favorite(project, classes)
+            is DownloadAssetsState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(all = 12.dp)
+                ) {
+                    ScalingLabel(
+                        modifier = Modifier.align(Alignment.Center),
+                        text = {
+                            AndroidStringText(
+                                text = buildAppendedText {
+                                    append(R.string.download_assets_failed_to_get_project)
+                                    append(result.message)
                                 }
-                        }
-                    }
-                )
+                            )
+                        },
+                        onClick = onReload
+                    )
+                }
             }
         }
     }

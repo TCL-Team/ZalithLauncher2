@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.game.download.game
 
 import com.movtery.zalithlauncher.game.addons.modloader.cleanroom.CleanroomVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersion
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.babric.BabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.legacyfabric.LegacyFabricVersion
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersion
 import com.movtery.zalithlauncher.game.addons.modloader.forgelike.forge.ForgeVersion
@@ -32,6 +33,8 @@ data class GameDownloadInfo(
     val gameVersion: String,
     /** 自定义版本名称 */
     val customVersionName: String,
+    /** 覆盖已安装版本 */
+    val overwrite: Boolean = false,
     val optifine: OptiFineVersion? = null,
     val forge: ForgeVersion? = null,
     val neoforge: NeoForgeVersion? = null,
@@ -42,4 +45,5 @@ data class GameDownloadInfo(
     val quilt: QuiltVersion? = null,
     val quiltAPI: ModVersion? = null,
     val cleanroom: CleanroomVersion? = null,
+    val babric: BabricVersion? = null,
 )

@@ -47,12 +47,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.movtery.layer_controller.event.ClickEvent
-import com.movtery.layer_controller.observable.ObservableClickEventsProvider
 import com.movtery.layer_controller.observable.ObservableControlLayer
+import com.movtery.layer_controller.observable.ObservableNormalData
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.rememberDialogMaxHeight
 import com.movtery.zalithlauncher.ui.screens.main.control_editor.InfoLayoutItem
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
@@ -60,12 +59,12 @@ import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
 
 /**
- * 编辑点击事件：切换控件层可见性
+ * 编辑按钮点击事件：切换控件层可见性
  * @param type 控制控件层的类型
  */
 @Composable
 fun EditSwitchLayersVisibilityDialog(
-    data: ObservableClickEventsProvider,
+    data: ObservableNormalData,
     layers: List<ObservableControlLayer>,
     type: ClickEvent.Type,
     onDismissRequest: () -> Unit
@@ -86,7 +85,7 @@ fun EditSwitchLayersVisibilityDialog(
         }
 
         if (unsafeEvents.isNotEmpty()) {
-            data.onRemoveAllEvents(unsafeEvents)
+            data.removeAllEvent(unsafeEvents)
             return@LaunchedEffect
         }
 
@@ -107,15 +106,13 @@ fun EditSwitchLayersVisibilityDialog(
         onDismissRequest = onDismissRequest
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .heightIn(max = rememberDialogMaxHeight())
-                .fillMaxHeight(),
+            modifier = Modifier.fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .padding(all = 3.dp)
-                    .heightIn(max = (maxHeight - 6.dp).coerceAtMost(rememberDialogMaxHeight()))
+                    .heightIn(max = maxHeight - 6.dp)
                     .wrapContentHeight(),
                 shadowElevation = 3.dp,
                 color = cardColor(false),
@@ -160,9 +157,9 @@ fun EditSwitchLayersVisibilityDialog(
                                 onSelectedChange = { selected ->
                                     val event = ClickEvent(type, layer.uuid)
                                     if (selected) {
-                                        data.onAddEvent(event)
+                                        data.addEvent(event)
                                     } else {
-                                        data.onRemoveEvent(event)
+                                        data.removeEvent(event)
                                     }
                                 }
                             )

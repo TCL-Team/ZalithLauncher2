@@ -18,6 +18,8 @@
 
 package com.movtery.zalithlauncher.game.account.offline
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.wardrobe.SkinModelType
@@ -49,6 +51,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import org.jackhuang.hmcl.util.DigestUtils
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.PublicKey
@@ -59,6 +63,21 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "OfflineYggdrasil"
+
+private fun readCapeAsPng(file: File): ByteArray? {
+    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+    return try {
+        ByteArrayOutputStream().use { output ->
+            if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                output.toByteArray()
+            } else {
+                null
+            }
+        }
+    } finally {
+        bitmap.recycle()
+    }
+}
 
 /**
  * 离线账号 Yggdrasil 服务器，用于本地加载玩家皮肤、披风
@@ -170,6 +189,8 @@ class OfflineYggdrasilServer(
 
         val skinBytes = skinFile.takeIf { it.exists() }?.readBytes()
         val skinHash = skinBytes?.let { DigestUtils.digestToString("SHA-256", it) }
+        val capeBytes = account.getSelectedCapeFile()?.let(::readCapeAsPng)
+        val capeHash = capeBytes?.let { DigestUtils.digestToString("SHA-256", it) }
 
         val character = Character(
             uuid = account.profileId.replace("-", ""),
@@ -177,6 +198,8 @@ class OfflineYggdrasilServer(
             skin = LoadedSkin(
                 skinHash = skinHash,
                 skinBytes = skinBytes,
+                capeHash = capeHash,
+                capeBytes = capeBytes,
                 model = account.skinModelType
             )
         )
