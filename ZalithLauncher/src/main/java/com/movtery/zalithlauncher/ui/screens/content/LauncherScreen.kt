@@ -224,19 +224,7 @@ fun LauncherScreen(
                 )
             }
 
-            if (!wideDashboard) {
-                RightMenu(
-                    isVisible = isVisible,
-                    modifier = Modifier
-                        .weight(3f)
-                        .fillMaxHeight()
-                        .padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
-                    onLaunchGame = onLaunchGame,
-                    toAccountManageScreen = toAccountManageScreen,
-                    toVersionManageScreen = toVersionManageScreen,
-                    toVersionSettingsScreen = toVersionSettingsScreen,
-                )
-            }
+            // RightMenu moved inside ContentMenu for centered profile layout
         }
     }
 }
@@ -300,48 +288,38 @@ private fun ContentMenu(
             }
         }
 
-        if (wideDashboard) {
-            Row(
+        // Forced three-column layout: Left stats | Center Profile+Launch | Right Changelog+LastLog
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatsSideColumn(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatsSideColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    side = StatsSide.Left,
-                    versionNames = versionNames,
-                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-                    onNavigateToLog = onNavigateToLog
-                )
-                RightMenu(
-                    isVisible = isVisible,
-                    modifier = Modifier
-                        .weight(1.15f)
-                        .fillMaxHeight(),
-                    onLaunchGame = onLaunchGame,
-                    toAccountManageScreen = toAccountManageScreen,
-                    toVersionManageScreen = toVersionManageScreen,
-                    toVersionSettingsScreen = toVersionSettingsScreen
-                )
-                StatsSideColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    side = StatsSide.Right,
-                    versionNames = versionNames,
-                    onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
-                    onNavigateToLog = onNavigateToLog
-                )
-            }
-        } else {
-            // Compact layout keeps the original two-column dashboard.
-            StatsGrid(
-                modifier = Modifier.weight(1f),
+                    .fillMaxHeight(),
+                side = StatsSide.Left,
                 versionNames = versionNames,
-                onNavigateToStats = onNavigateToStats,
+                onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
+                onNavigateToLog = onNavigateToLog
+            )
+            RightMenu(
+                isVisible = isVisible,
+                modifier = Modifier
+                    .weight(1.15f)
+                    .fillMaxHeight(),
+                onLaunchGame = onLaunchGame,
+                toAccountManageScreen = toAccountManageScreen,
+                toVersionManageScreen = toVersionManageScreen,
+                toVersionSettingsScreen = toVersionSettingsScreen
+            )
+            StatsSideColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                side = StatsSide.Right,
+                versionNames = versionNames,
                 onNavigateToPlayTimeStats = onNavigateToPlayTimeStats,
                 onNavigateToLog = onNavigateToLog
             )
